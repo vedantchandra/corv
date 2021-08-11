@@ -11,5 +11,5 @@ setup(name='corv',
       packages=['corv'],
       package_data={'corv':['pkl/*']},
       dependency_links = [],
-      install_requires=['numpy<1.23.0', 'scipy', 'lmfit'],
+      install_requires=['numpy==1.18.5', 'scipy', 'lmfit'],
       include_package_data=True)
