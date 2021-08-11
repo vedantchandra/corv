@@ -172,7 +172,10 @@ def make_balmer_model(nvoigt=1,
 
 # Koester DA Model
 
-wd_interp = pickle.load(open(basepath + '/pkl/koester_interp.pkl', 'rb'))
+try:
+    wd_interp = pickle.load(open(basepath + '/pkl/koester_interp.pkl', 'rb'))
+except:
+    print('could not find pickled WD models')
 
 def get_koester(x, teff, logg, RV):
     """
