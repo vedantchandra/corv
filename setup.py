@@ -1,15 +1,15 @@
 from setuptools import setup
 
-setup(name='wdtools',
-      version='0.4',
-      description='computational tools for the spectroscopic analysis of white dwarfs',
+setup(name='corv',
+      version='0.1',
+      description='compact object radial velocities',
       author='Vedant Chandra',
-      author_email='vchandra@jhu.edu',
+      author_email='vedantchandra@g.harvard.edu',
       license='MIT',
-      url='https://github.com/vedantchandra/wdtools',
+      url='https://github.com/vedantchandra/corv',
       package_dir = {},
-      packages=['wdtools'],
-      package_data={'wdtools':['models/*', 'models/neural_gen/*']},
+      packages=['corv'],
+      package_data={'corv':['pkl/*']},
       dependency_links = [],
-      install_requires=['emcee', 'corner', 'tensorflow==2.4.1', 'lmfit', 'scikit-learn', 'numpy==1.19.2'],
+      install_requires=['lmfit', 'numpy', 'scipy', 'matplotlib'],
       include_package_data=True)
