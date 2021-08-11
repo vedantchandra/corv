@@ -11,25 +11,24 @@ import numpy as np
 
 import corv
 
-# Test Models
+def test_models():
+    wl = np.linspace(4000, 8000, 8000)
 
-wl = np.linspace(4000, 8000, 8000)
+    plt.figure(figsize = (10, 7))
+    plt.subplot(121)
+    corvmodel = corv.models.make_balmer_model(names = ['a'])
+    params = corvmodel.make_params()
+    nwl, nfl = corv.models.get_normalized_model(wl, corvmodel, params)
+    plt.plot(nwl, nfl, 'k.')
+    params['RV'].set(value = 1000)
+    nwl, nfl = corv.models.get_normalized_model(wl, corvmodel, params)
+    plt.plot(nwl, nfl, 'r.')
 
-plt.figure(figsize = (10, 7))
-plt.subplot(121)
-corvmodel = corv.models.make_balmer_model(names = ['a'])
-params = corvmodel.make_params()
-nwl, nfl = corv.models.get_normalized_model(wl, corvmodel, params)
-plt.plot(nwl, nfl, 'k.')
-params['RV'].set(value = 1000)
-nwl, nfl = corv.models.get_normalized_model(wl, corvmodel, params)
-plt.plot(nwl, nfl, 'r.')
-
-plt.subplot(122)
-corvmodel = corv.models.make_koester_model(names = ['a'])
-params = corvmodel.make_params()
-nwl, nfl = corv.models.get_normalized_model(wl, corvmodel, params)
-plt.plot(nwl, nfl, 'k.')
-params['RV'].set(value = 1000)
-nwl, nfl = corv.models.get_normalized_model(wl, corvmodel, params)
-plt.plot(nwl, nfl, 'r.')
+    plt.subplot(122)
+    corvmodel = corv.models.make_koester_model(names = ['a'])
+    params = corvmodel.make_params()
+    nwl, nfl = corv.models.get_normalized_model(wl, corvmodel, params)
+    plt.plot(nwl, nfl, 'k.')
+    params['RV'].set(value = 1000)
+    nwl, nfl = corv.models.get_normalized_model(wl, corvmodel, params)
+    plt.plot(nwl, nfl, 'r.')
