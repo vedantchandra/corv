@@ -8,6 +8,8 @@ Created on Wed Aug 11 12:08:00 2021
 
 import numpy as np
 from bisect import bisect_left
+import scipy
+import matplotlib.pyplot as plt
 
 
 def cont_norm_line(wl, fl, ivar, centre, window, edge):
@@ -52,6 +54,52 @@ def cont_norm_line(wl, fl, ivar, centre, window, edge):
     norm_fl = fl / continuum
     norm_ivar = ivar * continuum**2
     return wl, norm_fl, norm_ivar
+
+def cont_norm_lines(wl, fl, ivar, names, centres, windows, edges):
+    nwl = [];
+    nfl = [];
+    nivar = [];
+    
+    for line in names:
+        nwli, nfli, nivari = cont_norm_line(wl, 
+                                            fl, 
+                                            ivar, 
+                                            centres[line], 
+                                            windows[line], 
+                                            edges[line])
+        nwl.extend(nwli)
+        nfl.extend(nfli)
+        nivar.extend(nivari)
+        
+    return np.array(nwl), np.array(nfl), np.array(nivar)
+
+
+
+def crrej(wl, fl, ivar, nsig = 3, medwindow = 11, plot = False):
+
+    medfl = scipy.ndimage.median_filter(fl, medwindow)
+    
+    if plot:
+        plt.plot(wl, fl)
+        plt.plot(wl, medfl)
+        plt.show()
+    
+    zscore = (fl  - medfl) * np.sqrt(ivar)
+
+    crmask = (np.abs(zscore) > nsig) | (ivar == 0)
+    
+    corr_ivar = ivar
+    corr_ivar[crmask] = 0
+    corr_fl = np.interp(wl, wl[~crmask], fl[~crmask])
+    
+    if plot:
+        plt.title('crrej z-score')
+        plt.plot(wl, np.abs(zscore))
+        plt.ylim(-0.5, 5)
+        plt.show()
+        print('%i pixels rejected' % np.sum(crmask))
+
+    return wl, corr_fl, corr_ivar
 
 def air2vac(wv):
     """

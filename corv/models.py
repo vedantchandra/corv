@@ -39,73 +39,8 @@ default_windows = dict(a = 200, b = 200, g = 80, d = 80)
 default_edges = dict(a = 50, b = 50, g = 20, d = 20)
 default_names = ['d', 'g', 'b', 'a']
 
-# CONTINUUM NORMALIZATION
+### MODEL DEFINITIONS ###
 
-def normalize_lines(wl, fl, ivar, corvmodel):
-    """
-    Normalize all absorption lines defined by a given model type.
-
-    Parameters
-    ----------
-    wl : array_like
-        wavelength in AA.
-    fl : array_like
-        flux.
-    ivar : array_like
-        inverse-variance.
-    corvmodel : LMFIT Model class
-        LMFIT Model with centres and lines added.
-
-    Returns
-    -------
-    tuple
-        tuple of normalized wavelength, flux and inverse-variance arrays.
-
-    """
-    nwl = [];
-    nfl = [];
-    nivar = [];
-    for line in corvmodel.names:
-
-        nwli, nfli, nivari = utils.cont_norm_line(wl, fl, ivar, 
-                                                  corvmodel.centres[line], 
-                                                  corvmodel.windows[line],
-                                                  corvmodel.edges[line])
-        nwl.extend(nwli)
-        nfl.extend(nfli)
-        nivar.extend(nivari)
-        
-    return np.array(nwl), np.array(nfl), np.array(nivar)
-
-def get_normalized_model(wl, corvmodel, params):
-    """
-    Evaluates and continuum-normalizes a given corvmodel. 
-
-    Parameters
-    ----------
-    wl : array_like
-        wavelength in Angstrom.
-    corvmodel : LMFIT model class
-        model class with line attributes defined.
-    params : LMFIT Parameters class
-        parameters at which to evaluate model.
-
-    Returns
-    -------
-    nwl : array_like
-        cropped wavelengths in Angstrom.
-    nfl : TYPE
-        cropped and continuum-normalized flux.
-
-    """
-    flux = corvmodel.eval(params, x = wl)
-    
-    # pass a dummy ivar value below
-    nwl, nfl, _ = normalize_lines(wl, flux, flux, corvmodel)
-    
-    return nwl, nfl
-
-# MODEL DEFINITIONS
 # Balmer Model
 
 
@@ -199,6 +134,7 @@ def get_koester(x, teff, logg, RV):
     df = np.sqrt((1 - RV/c_kms)/(1 + RV/c_kms))
     x_shifted = x * df
     flam = 10**wd_interp((logg, np.log10(teff), np.log10(x_shifted)))
+    flam = flam / np.median(flam) # bring to order unity
     return flam
 
 
@@ -242,3 +178,34 @@ def make_koester_model(centres = default_centres,
     model.edges = edges
     
     return model
+
+def get_normalized_model(wl, corvmodel, params):
+    """
+    Evaluates and continuum-normalizes a given corvmodel. 
+
+    Parameters
+    ----------
+    wl : array_like
+        wavelength in Angstrom.
+    corvmodel : LMFIT model class
+        model class with line attributes defined.
+    params : LMFIT Parameters class
+        parameters at which to evaluate model.
+
+    Returns
+    -------
+    nwl : array_like
+        cropped wavelengths in Angstrom.
+    nfl : TYPE
+        cropped and continuum-normalized flux.
+
+    """
+    flux = corvmodel.eval(params, x = wl)
+    
+    nwl, nfl, _ = utils.cont_norm_lines(wl, flux, flux,
+                                  corvmodel.names,
+                                  corvmodel.centres,
+                                  corvmodel.windows,
+                                  corvmodel.edges)
+    
+    return nwl, nfl

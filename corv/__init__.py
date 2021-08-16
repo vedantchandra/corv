@@ -8,3 +8,4 @@ Created on Wed Aug 11 15:52:37 2021
 
 from . import models
 from . import utils
+from . import fit
