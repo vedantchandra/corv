@@ -2,7 +2,7 @@
 
 this package contains routines to model the spectra of compact objects (e.g. white dwarfs and M-dwarfs), and estimate their radial velocities. 
 
-[Code Documentation](https://vedantchandra.com/corv/html/corv/index.html)
+[Documentation](https://vedantchandra.com/corv/html/corv/index.html)
 
 ## Contributors
 
