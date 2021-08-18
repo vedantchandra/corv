@@ -37,7 +37,7 @@ corvmodel = corv.models.make_koester_model()
 params = corvmodel.make_params()
 params['RV'].set(value = 132)
 fl = corvmodel.eval(params, x = wl)
-sig = 0.1 * np.median(fl)
+sig = 0.05 * (fl)
 fl += sig * np.random.normal(size = len(wl))
 ivar = 0*fl + 1 / (sig)**2
 
@@ -47,3 +47,5 @@ param_res, rv_res, rv_init = corv.fit.fit_corv(wl, fl, ivar, corvmodel)
 print(rv_init)
 print(param_res.params['RV'])
 print(rv_res.params['RV'])
+
+corv.utils.lineplot(wl, fl, ivar, corvmodel, param_res.params)

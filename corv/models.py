@@ -26,6 +26,8 @@ import numpy as np
 from lmfit.models import Model, ConstantModel, VoigtModel
 import pickle
 import os
+import scipy 
+
 basepath = os.path.dirname(os.path.abspath(__file__))
 print(basepath)
 
@@ -112,7 +114,7 @@ try:
 except:
     print('could not find pickled WD models')
 
-def get_koester(x, teff, logg, RV):
+def get_koester(x, teff, logg, RV, res):
     """
     Interpolates Koester (2010) DA models
 
@@ -135,10 +137,16 @@ def get_koester(x, teff, logg, RV):
     x_shifted = x * df
     flam = 10**wd_interp((logg, np.log10(teff), np.log10(x_shifted)))
     flam = flam / np.median(flam) # bring to order unity
+    
+    dx = np.median(np.diff(x))
+    window = res / dx
+    
+    flam = scipy.ndimage.gaussian_filter1d(flam, window)
+    
     return flam
 
 
-def make_koester_model(centres = default_centres, 
+def make_koester_model(resolution = 1, centres = default_centres, 
                        windows = default_windows, 
                        edges = default_edges,
                        names = default_names):
@@ -147,6 +155,9 @@ def make_koester_model(centres = default_centres,
 
     Parameters
     ----------
+    resolution : float, optional
+        gaussian sigma in AA by which the models are convolved. 
+        The default is 1.
     centres : dict, optional
         rest-frame line centres. The default is default_centres.
     windows : dict, optional
@@ -165,11 +176,12 @@ def make_koester_model(centres = default_centres,
     
     model = Model(get_koester,
                   independent_vars = ['x'],
-                  param_names = ['teff', 'logg', 'RV'])
+                  param_names = ['teff', 'logg', 'RV', 'res'])
     
     model.set_param_hint('teff', min = 3251, max = 39999, value = 12000)
     model.set_param_hint('logg', min = 6.01, max = 9.49, value = 8)
     model.set_param_hint('RV', min = -2500, max = 2500, value = 0)
+    model.set_param_hint('res', value = resolution, min = 0, vary = False)
     
     
     model.centres = centres

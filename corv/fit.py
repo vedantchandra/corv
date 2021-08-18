@@ -49,8 +49,8 @@ def normalized_residual(wl, fl, ivar, corvmodel, params):
     return resid
 
 def xcorr_rv(wl, fl, ivar, corvmodel, params,
-             min_rv = -1500, max_rv = 1500, 
-             npoint = 250,
+             min_rv = -1000, max_rv = 1000, 
+             npoint = 25,
              quad_window = 300):
     """
     Find best RV via x-correlation on grid and quadratic fitting the peak.

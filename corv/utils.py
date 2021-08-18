@@ -10,6 +10,62 @@ import numpy as np
 from bisect import bisect_left
 import scipy
 import matplotlib.pyplot as plt
+from astropy import constants as c
+
+def lineplot(wl, fl, ivar, corvmodel, params, gap = 0.3, printparams = True,
+             figsize = (6, 5)):
+    
+    model = corvmodel.eval(params, x = wl)
+    
+    chi2 = 0
+    dof = 0
+    
+    f = plt.figure(figsize = figsize)
+    
+    for ii,line in enumerate(corvmodel.names):
+        
+        cwl, cfl, civar = cont_norm_line(wl, fl, ivar, 
+                                     corvmodel.centres[line],
+                                     corvmodel.windows[line],
+                                     corvmodel.edges[line])
+        _, cmodel, _ = cont_norm_line(wl, model, model, 
+                                     corvmodel.centres[line],
+                                     corvmodel.windows[line],
+                                     corvmodel.edges[line])
+        
+        dlam = (cwl - corvmodel.centres[line])
+        
+        plt.plot(dlam, cfl - ii * gap, 'k')
+        plt.plot(dlam, cmodel - ii * gap, 'r')
+        
+        chi2 += np.sum((cfl - cmodel)**2 * civar)
+        dof += len(cfl)
+        
+    redchi = chi2 / (dof - len(params))
+        
+    plt.xlabel(r'$\mathrm{\Delta \lambda}\ (\mathrm{\AA})$')
+    plt.ylabel('Normalized Flux')
+    
+    if printparams:
+    
+        plt.text(0.97, 0.05, 
+                 r'$T_{\mathrm{eff}} = %.0f \pm %.0f\ K$' % 
+                 (params['teff'].value, params['teff'].stderr),
+    			transform = plt.gca().transAxes, fontsize = 15, ha = 'right')
+    		
+        plt.text(0.97, 0.1, 
+                 r'$\log{g} = %.2f \pm %.2f $' % 
+                 (params['logg'].value, params['logg'].stderr),
+    			transform = plt.gca().transAxes, fontsize = 15, ha = 'right')
+    				 
+        plt.text(0.97, 0.15, r'$\chi_r^2$ = %.2f' % (redchi),
+    			transform = plt.gca().transAxes, fontsize = 15, ha = 'right')
+        
+        
+    plt.ylim(-gap * ii, 1 + gap)
+    
+    return f
+    
 
 
 def cont_norm_line(wl, fl, ivar, centre, window, edge):
@@ -138,4 +194,11 @@ def vac2air(wv):
     _tl = 1.e4/np.array(wv)
     return (np.array(wv) / (1. + 6.4328e-5 + 2.94981e-2
                             / (146. - _tl**2) + 2.5540e-4 / (41. - _tl**2)))
+
+def doppler_shift(wl, fl, dv):
+       c = 2.99792458e5
+       df = np.sqrt((1 - dv/c)/(1 + dv/c)) 
+       new_wl = wl * df
+       new_fl = np.interp(new_wl, wl, fl)
+       return new_fl
         
