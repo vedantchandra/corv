@@ -34,6 +34,7 @@ import pandas as pd
 import emcee
 from PIL import Image
 import shutil
+import pickle
 
 # Define paths. This can be changed for a different system
 
@@ -52,6 +53,9 @@ output_dir = ('/Users/vedantchandra/0_research/13_sdss5/06_wd_rv_variability/'
 
 gcns = Table.read('/Users/vedantchandra/0_research/'
                   '09_gemini_wd/shen_d62/misc_files/GCNS_cat.fits')
+
+logteff_logg_to_msun_he = pickle.load(
+    open('/Users/vedantchandra/0_research/13_sdss5/06_wd_rv_variability/interp/he_msun.pkl', 'rb'))
 
 # Path-specific imports
 
@@ -165,12 +169,12 @@ Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source"
 
 # SDSS-V and RVs
 
-try:
-    cid = int(sys.argv[1])
-except:
-    raise OSError('please pass a catalog ID as an argument!')
+# try:
+#     cid = int(sys.argv[1])
+# except:
+#     raise OSError('please pass a catalog ID as an argument!')
     
-# cid = 4592943353 # for testing purposes
+cid = 5189685452 # for testing purposes
 
 table = rvtable[rvtable['catalogid'] == cid]
 
@@ -262,8 +266,7 @@ stack_fl_corr, stack_ivar_corr = make_coadd(exps_corrected)
 ra = gaia['ra']
 dec = gaia['dec']
 
-#%%
-# Plot Coadd
+#%% Plot Coadd
 
 from astropy.coordinates import SkyCoord
 
@@ -353,6 +356,13 @@ corv.utils.lineplot(lamgrid, stack_fl_corr, stack_ivar_corr,
 
 plt.savefig(outroot + '002_spec_gfp.png')
 plt.show(block = False)
+
+# Write co-add to file for ITC
+
+lamgrid_nm = lamgrid / 10
+spec_nm = np.vstack((lamgrid_nm, stack_fl_corr / np.median(stack_fl_corr))).T
+np.savetxt(outroot + 'sdss5_coadd.sed', spec_nm)
+
 #%% Gaia CMD
 
 gclean = (
@@ -407,10 +417,6 @@ track02_m = logteff_msun_to_mag(logteffs, 0.2)
 track0606_m = -2.5 * np.log10(2*10**(-0.4 * track06_m))
 track0602_m = -2.5 * np.log10(10**(-0.4 * track06_m) + 10**(-0.4 * track02_m))
 
-if not np.isnan(gaia_teff):
-    gaia_teff = int(gaia_teff)
-    e_gaia_teff = int(e_gaia_teff)
-
 
 plt.figure(figsize = (8, 8))
 
@@ -425,7 +431,7 @@ plt.errorbar(bp_rp, g_abs, marker = '*', mfc = 'tab:red', mec = 'k', lw = 2, mar
 plt.text(0.95, 0.7, 'CMD & B20:', ha = 'right', va = 'top', 
         transform = plt.gca().transAxes)
 
-plt.text(0.95, 0.65, '$T_{eff} = %i \pm %i$ K' % (gaia_teff, e_gaia_teff), ha = 'right', va = 'top', 
+plt.text(0.95, 0.65, '$T_{eff} = %.0f \pm %.0f$ K' % (gaia_teff, e_gaia_teff), ha = 'right', va = 'top', 
         transform = plt.gca().transAxes)
 plt.text(0.95, 0.6, '$\log{g} = %.1f \pm %.1f$ dex' % (gaia_logg, e_gaia_logg), ha = 'right', va = 'top', 
         transform = plt.gca().transAxes)
@@ -593,7 +599,9 @@ res = lmfit.minimize(residual, params)
 
 plt.figure(figsize = (10, 7)) 
 
-phase = (time_hr % res.params['P']) / res.params['P']
+phase = ((time_hr +  + res.params['phi'] * res.params['P'] / (2 * np.pi)) % res.params['P']) / res.params['P']
+
+res.params['phi'].set(value = 0)
 
 plt.errorbar(phase, rv, e_rv,
            linestyle = 'none', marker = 'o', color = 'k')
@@ -663,48 +671,28 @@ plt.show(block = False)
 
 flatchain = pd.DataFrame(flatchain, columns = pnames)
 
-plt.figure(figsize = (10, 7)) 
-
-plt.errorbar(phase, rv, e_rv,
-           linestyle = 'none', marker = 'o', color = 'k', label = 'Data')
-
-ncurve = 100
-
-for N in range(ncurve):
-    idx = np.random.randint(0, len(flatchain))
-    row = flatchain.iloc[idx]
-    
-    model = rvmodel(pgrid, row)
-    
-    if N == 0:
-        lab = 'Posterior Models'
-    else:
-        lab = None
-    
-    plt.plot(pgrid, model, 'r', lw = 1, alpha = 0.1, label = lab)
-    
-plt.xlabel('Phase (P = %.5f hr)' % bestp_hr)
-plt.ylabel('RV (kms$^{-1}$)')
-plt.xlim(-0.1, 1.1)
-leg = plt.legend()
-for lh in leg.legendHandles: 
-    lh.set_alpha(1)
-
-plt.savefig(outroot + '008_fit_rvs.png')
-plt.show(block = False)
-
 #%% Analytic Calculations
 
 logteff_logg_to_msun = WD_models_master.interp_xy_z_func(evol_model['logteff'], evol_model['logg'],
                                                         evol_model['mass_array'])
 
-m1_spec = logteff_logg_to_msun(np.log10(pres.params['teff'].value), 
-                               pres.params['logg'].value)
+if pres.params['logg'].value >= 7.5:
+    print('using C/O models for M1')
+    m1_spec = logteff_logg_to_msun(np.log10(pres.params['teff'].value), 
+                                   pres.params['logg'].value)
+    atm = 'C/O'
+    
+elif pres.params['logg'].value < 7.5:
+    print('using He models for M1')
+    m1_spec = logteff_logg_to_msun_he(np.log10(pres.params['teff'].value), 
+                                   pres.params['logg'].value)
+    atm = 'He'
+
 m1_phot = evol_model['HR_to_mass'](bp_rp, g_abs)
 
-if np.isnan(m1_spec) and pres.params['logg'] <= 6.5:
-    m1_spec = 0.2
-    print('off B20 grid, assuming M1 = 0.2')
+# if np.isnan(m1_spec) and pres.params['logg'] <= 7:
+#     m1_spec = 0.2
+#     print('off B20 grid, assuming M1 = 0.2')
 
 bestfit = flatchain.mean()
 e_bestfit = flatchain.std()
@@ -744,12 +732,57 @@ plt.ylabel('Density')
 plt.hist(f**(1/3) * m1_spec**(2/3), density = True, color = 'tab:orange', 
          histtype = 'step', lw = 3, bins = 1000, label = '$f(M_2)^{1/3} M_1^{2/3}$', range = (0, 1.4))
 
-plt.title('$M_1 (spec) = %.2f\,M_\odot$' % m1_spec)
+plt.title('$M_1 (spec) = %.2f\,M_\odot$ (%s)' % (m1_spec, atm))
 
 plt.legend()
 
-plt.savefig(outroot + '009_fm_pdf.png')
+plt.savefig(outroot + 'fm_pdf.png')
 plt.show(block = False)
+
+#%% Plot RV Fit
+
+plt.figure(figsize = (10, 7)) 
+
+plt.errorbar(phase, rv, e_rv,
+           linestyle = 'none', marker = 'o', color = 'k', label = 'Data')
+
+ncurve = 100
+
+for N in range(ncurve):
+    idx = np.random.randint(0, len(flatchain))
+    row = flatchain.iloc[idx]
+    
+    model = rvmodel(pgrid, row)
+    
+    if N == 0:
+        lab = 'Posterior Models'
+    else:
+        lab = None
+    
+    plt.plot(pgrid, model, 'r', lw = 1, alpha = 0.1, label = lab)
+    
+plt.xlabel('Phase (P = %.5f hr)' % bestp_hr)
+plt.ylabel('RV (kms$^{-1}$)')
+plt.xlim(-0.1, 1.1)
+leg = plt.legend(loc = 'lower left', framealpha = 1)
+for lh in leg.legendHandles: 
+    lh.set_alpha(1)
+    
+plt.text(0.95, 0.96, r'$\gamma = %.0f \pm %.0f~kms^{-1}$' % (bestfit['gamma'], e_bestfit['gamma']),
+         ha = 'right', va = 'top', transform = plt.gca().transAxes)
+
+plt.text(0.95, 0.9, r'$K = %.0f \pm %.0f~kms^{-1}$' % (bestfit['K'], e_bestfit['K']),
+         ha = 'right', va = 'top', transform = plt.gca().transAxes)
+
+plt.text(0.95, 0.84, r'$f(M_2) = %.2f \pm %.2f~M_\odot$' % (f.mean(), f.std()),
+         ha = 'right', va = 'top', transform = plt.gca().transAxes)
+
+plt.text(0.95, 0.78, r'$s \approx %.0f~kms^{-1}$' % (bestfit['s']),
+         ha = 'right', va = 'top', transform = plt.gca().transAxes)
+
+plt.savefig(outroot + '008_fit_rvs.png')
+plt.show(block = False)
+
 
 #%% M1 and inclination vs M2
 
@@ -776,11 +809,14 @@ plt.ylabel('Inclination (degree)')
 
 cbar = plt.colorbar()
 cbar.ax.set_ylabel('$M_2\ (M_\odot)$')
-plt.axvline(m1_spec, color = 'k', linestyle = '--', lw = 2)
+plt.axvline(m1_spec, color = 'k', linestyle = '--', lw = 2, 
+            label = 'Spec. $M_1 = %.2f$ (%s)' % (m1_spec, atm))
+
+plt.legend(framealpha = 1)
 
 plt.tight_layout()
 
-plt.savefig(outroot + '010_m1_m2_inc.png')
+plt.savefig(outroot + '009_m1_m2_inc.png')
 plt.show(block = False)
 
 #%% Assume M1 = M1_spec and inclination distribution
@@ -802,7 +838,7 @@ plt.subplot(211)
 plt.hist(m2_samples, range = (0, 1.4), density = True, bins = 25, histtype = 'step', lw = 3, color = 'k');
 plt.xlabel('$M_2$ $(M_\odot)$')
 plt.ylabel('Density')
-plt.title(r'$Pr(i) \propto \sin^2(i)$, $M_1 = %.2f M_\odot$' % m1_spec);
+plt.title(r'$Pr(i) \propto \sin^2(i)$, $M_1 = %.2f M_\odot$ (%s)' % (m1_spec, atm));
 
 tot_samples = m2_samples + m1_spec
 
@@ -819,8 +855,103 @@ plt.title(r'$Pr(M_t > 1 M_\odot) \approx %.2f$' % P_1m)
 
 plt.tight_layout()
 
-plt.savefig(outroot + '011_prob_m2.png')
+plt.savefig(outroot + '010_prob_m2.png')
 plt.show(block = False)
+
+#%% Get Vizier SED
+
+def get_SED(ra,dec):
+    """
+    Purpose
+        To find all spectral energy density (SED) data near a given location and
+        return a table of data
+    Parameters
+        coords - list consiting of:-
+            ra:  Float or string. Value is position in decimal degrees (J2000)
+            dec: Float or string. Value is position in decimal degrees (J2000)
+    Returns
+        List (which may be empty) of lists. Each list element consists of two strings:
+            - a single character for the filter (g,r,i,z,y)
+            - a URL.
+        The list is sorted by filter (ie increasing wavelength)
+    History
+        7/6/20 Keith Inight. Initial version
+    """
+ 
+    from astropy.io.votable import parse
+    from requests import get
+    from io import BytesIO
+ 
+    radius=1
+#    Check input parameters
+    try:
+        float(ra)
+    except ValueError:
+        raise ValueError( " get_SED parameter error. ra is ",ra," and should be float")
+    try:
+        float(dec)
+    except ValueError:
+        raise ValueError( " get_SED parameter error. dec is ",dec," and should be float")
+  
+    ra=round(float(ra),9)
+    dec=round(float(dec),9)
+    urlbase='http://vizier.u-strasbg.fr/viz-bin/sed?-c='
+    url=urlbase+str(ra)+"%09"+str(dec)+"&-c.rs="+str(radius)
+    try:
+        response=get(url)
+        if response.status_code==200:
+            votable=parse(BytesIO(response.content))
+            for resource in votable.resources:
+                for table in resource.tables:
+                    return table.to_table()
+        else:
+            raise ConnectionError ( " get_SED 'get' error={}  ra={}  dec=  {}".format(response.status_code,ra,dec))
+    except:
+        raise ConnectionError( "get_SED 'get' error.  ra={}  dec={}".format(ra,dec))
+        
+
+viz = get_SED(gaia['ra'], gaia['dec'])
+
+#%% Plot Vizier SED
+
+plot_data=[]
+types=[]
+ 
+for rec in viz:
+#   flux=1e-23*SED_data['sed_flux']*3e8/(wave**2)
+    x = (c.c.value / (rec['sed_freq'] * 1e9)) * 1e10  #angstrom
+    
+    y= 2.99792458e-05 * rec['sed_flux'] / (x**2)
+    errors= 2.99792458e-05 * rec['sed_eflux'] / (x**2)
+
+    source=rec['sed_filter']
+    plot_data+=[[float(x),float(y),float(errors),source]]
+            
+plot_data=sorted(plot_data, key = lambda param : param[3])
+ 
+plt.figure(figsize = (8, 8))
+
+for datum in plot_data:
+    
+    if datum[2] <= 0 or np.isnan(datum[2]): 
+        continue;
+
+    if datum[1] / datum[2] < 5: # S/N cut for photometry
+        continue
+    
+    plt.errorbar(datum[0], datum[1], yerr = datum[2],
+                 linestyle = 'none', marker = 'o', markersize = 5,
+                 color = 'k')
+
+plt.xscale('log')
+plt.yscale('log')
+
+plt.xlabel('Wavelength ($\AA$)')
+plt.ylabel('Flux ($erg\,cm^{-2}\,s^{-1}\,\AA^{-1}$)')
+
+plt.savefig(outroot + '011_sed.png')
+plt.show()
+
 
 #%% Combine plots into summary page
 
