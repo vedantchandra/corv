@@ -158,8 +158,13 @@ def get_exposures(catalogid):
     seltable = lutable[lutable['catalogid'] == '0' + str(catalogid)]
     exps = [];
     for row in seltable:
-        exps.append(get_exposure(exppath  + row['bluefiles'],
-                                 exppath + row['redfiles']))
+        exp = get_exposure(exppath  + row['bluefiles'],
+                                 exppath + row['redfiles'])
+        
+        mjd = exp['tai_beg'] / daysec
+        
+        if mjd > min_mjd and mjd < max_mjd:
+            exps.append(exp)
     return exps
 
 def get_radec(catalogid):
@@ -194,6 +199,9 @@ Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source"
 #     raise OSError('please pass a catalog ID as an argument!')
     
 cid = 4553795905 # for testing purposes
+
+min_mjd = 0
+max_mjd = 59230
 
 table = rvtable[rvtable['catalogid'] == cid]
 

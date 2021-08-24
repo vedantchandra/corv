@@ -1,0 +1,634 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+This script takes in an SDSS-V catalog ID and generates end-to-end
+summary plots of the object. Currently includes:
+    SDSS-V spectrum and analysis
+    Gaia EDR3 CMD
+
+Could be added:
+    Vizier SED
+    ZTF photometry
+    
+"""
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+import sys
+from astropy.io import fits
+import os
+from astropy.table import Table
+from tqdm import tqdm
+import glob
+import copy
+import scipy
+import lmfit
+from astropy import units as u
+from astropy.timeseries import LombScargle
+from matplotlib.colors import LogNorm
+from astropy import constants as c
+from astroquery.gaia import Gaia
+import corner 
+import pandas as pd
+import emcee
+from PIL import Image
+import shutil
+import pickle
+
+# Define paths. This can be changed for a different system
+
+corv_path = '/Users/vedantchandra/0_research/corv/'
+WDmodels_path =  '/Users/vedantchandra/0_research/'
+lookuptable = ('/Users/vedantchandra/0_research/'
+               '13_sdss5/06_wd_rv_variability/'
+               'tables/lookuptable.fits')
+rvtable_path = ('/Users/vedantchandra/0_research/'
+               '13_sdss5/06_wd_rv_variability/'
+               'tables/rvfits_fullspec.fits')
+exppath = '/Users/vedantchandra/0_research/13_sdss5/06_wd_rv_variability/'
+plt.style.use('vedant')
+output_dir = ('/Users/vedantchandra/0_research/13_sdss5/06_wd_rv_variability/'
+              'fig/')
+
+gcns = Table.read('/Users/vedantchandra/0_research/'
+                  '09_gemini_wd/shen_d62/misc_files/GCNS_cat.fits')
+
+logteff_logg_to_msun_he = pickle.load(
+    open('/Users/vedantchandra/0_research/13_sdss5/06_wd_rv_variability/interp/he_msun.pkl', 'rb'))
+
+# Path-specific imports
+
+sys.path.append(corv_path)
+import corv
+sys.path.append(WDmodels_path)
+import WD_models_master
+lutable = Table.read(lookuptable)
+evol_model = WD_models_master.load_model('Bedard2020', 'Bedard2020', 
+                                         'Bedard2020', 'H',
+                                   HR_bands=('bp3-rp3', 'G3'))
+rvtable = Table.read(rvtable_path)
+plt.ioff()
+
+
+#%% Convenience Functions
+
+balmer = dict(a = 6564.61, b = 4862.68, g = 4341.68, d = 4102.89)
+windows = dict(a = 200, b = 200, g = 85, d = 70)
+edges = dict(a = 50, b = 50, g = 20, d = 20)
+lines = ['d', 'g', 'b', 'a']
+
+def make_coadd(exps, expstart = 0, expend = -1, sky = False):
+    fls = [];
+    ivars = [];
+    
+    if sky:
+        flkey = 'sky'
+    else:
+        flkey = 'fl'
+
+    for nn in np.arange(len(exps))[expstart:expend]:
+        exp = exps[nn]
+
+        fls.append(np.interp(loglamgrid, exp['logwl'], (exp[flkey])))
+        ivars.append(np.interp(loglamgrid, exp['logwl'], (exp['ivar'])))
+
+    ivars = np.array(ivars)
+    mask = ivars == 0
+    ivars[mask] = 1 # dummy
+    variances = 1 / ivars
+    variance = np.sum(variances, axis = 0) / len(variances)**2
+    ivar = 1 / variance
+    
+    fl = np.median(fls, axis = 0)
+    smask = (mask).all(axis = 0)
+    ivar[smask] = 0
+    
+    return fl, ivar
+
+w1 = 3600
+w2 = 9000
+
+loglamgrid = np.linspace(np.log10(w1), np.log10(w2), 6500) # grid for co-add wavelengths
+lamgrid = 10**loglamgrid
+break_wl = 5900 # transition from red to blue
+
+def get_exposure(bf, rf):
+    exp = {};
+    with fits.open(bf) as f:
+        
+        bwl = f[3].data
+        bfl = f[0].data
+        bivar = f[1].data
+        bdisp = f[4].data
+        bsky = f[5].data
+        
+        exp['tai_beg'] = f[0].header['TAI-BEG']
+        exp['airmass'] = f[0].header['AIRMASS']
+        exp['vhelio'] = f[0].header['HELIO_RV']
+        exp['az'] = f[0].header['AZ']
+        exp['alt'] = f[0].header['ALT']
+        exp['mjd'] = f[0].header['MJD']
+        exp['edr3_source'] = int(f[0].header['G_EDR3'])
+        exp['RA'] = f[0].header['RA']
+        exp['DEC'] = f[0].header['DEC']
+
+    with fits.open(rf) as f:
+        
+        rwl = f[3].data
+        rfl = f[0].data
+        rivar = f[1].data
+        rdisp = f[4].data
+        rsky = f[5].data
+        
+    rsel = rwl > np.log10(break_wl)
+    bsel = bwl < np.log10(break_wl)
+        
+    exp['logwl'] = np.concatenate((bwl[bsel], rwl[rsel]))
+    exp['fl'] = np.concatenate((bfl[bsel], rfl[rsel]))
+    exp['ivar'] = np.concatenate((bivar[bsel], rivar[rsel]))
+    exp['wdisp'] = np.concatenate((bdisp[bsel], rdisp[rsel]))
+    exp['sky'] = np.concatenate((bsky[bsel], rsky[rsel]))
+        
+    return exp
+
+break_wl = 6000
+
+def get_exposures(catalogid):
+    seltable = lutable[lutable['catalogid'] == '0' + str(catalogid)]
+    exps = [];
+    for row in seltable:
+        exps.append(get_exposure(exppath  + row['bluefiles'],
+                                 exppath + row['redfiles']))
+    return exps
+
+def get_radec(catalogid):
+    seltable = lutable[lutable['catalogid'] == '0' + str(catalogid)]
+    with fits.open(seltable[0]['bluefiles']) as f:
+        ra,dec = f[0].header['RA'], f[0].header['DEC']
+    return ra,dec
+
+def get_expdata(exps):
+    keys = exps[0].keys()
+    expdata = {key: [] for key in keys}
+    for exp in exps:
+        for key in keys:
+            datum = exp[key]
+            if not isinstance(datum, np.ndarray):
+                expdata[key].append(datum)
+                
+    for key in keys:
+        if len(expdata[key]) == 0:
+            expdata.pop(key)
+                
+    return Table(expdata)
+#%% Get Data
+
+Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source"
+
+# SDSS-V and RVs
+
+# try:
+#     cid = int(sys.argv[1])
+# except:
+#     raise OSError('please pass a catalog ID as an argument!')
+    
+cid = 4592943353 # for testing purposes
+
+table = rvtable[rvtable['catalogid'] == cid]
+
+exps = get_exposures(cid)
+
+daysec = (1 * u.day).to(u.second).value
+
+data = get_expdata(exps)
+
+data['taibeg_mjd'] = data['tai_beg'] / daysec
+
+# Gaia
+
+source_id = exps[0]['edr3_source']
+
+job = Gaia.launch_job("select * "
+                      "from gaiaedr3.gaia_source "
+                      "where (source_id = %s) " % str(source_id))
+
+gaia = job.get_results()[0]
+
+job = Gaia.launch_job("select * "
+                      "from external.gaiaedr3_distance "
+                      "where (source_id = %s) " % str(source_id))
+
+bjdist = job.get_results()[0]
+
+# Make output directory
+
+outdir = output_dir + '%s_sb2/' % str(source_id)
+outroot = outdir + '%s' % str(source_id) + '_'
+try:
+    os.mkdir(outdir)
+except:
+    print('dir exists, clearing')
+    shutil.rmtree(outdir)
+    os.mkdir(outdir)
+
+#%% View Balmer Lines
+
+import matplotlib
+
+cmap = matplotlib.cm.get_cmap('tab10')
+
+balmerlist = [4341.68, 4862.68, 6564.61, 6555.3]
+
+names = [r'H$\gamma$', r'H$\beta$', r'H$\alpha$', 'Sky']
+
+f,axs = plt.subplots(1, 4, figsize = (10, 10))
+
+tai_max = np.max(data['tai_beg'])
+tai_min = np.min(data['tai_beg'])
+
+for kk,line in enumerate(balmerlist):
+    plt.sca(axs[kk])
+    for ii,exp in enumerate(exps):
+        frac = (exp['tai_beg'] - tai_min) / (tai_max - tai_min)
+        
+        if kk < 3:
+            cwl, cfl, civar = corv.utils.cont_norm_line(10**exp['logwl'], exp['fl'], exp['ivar'],
+                                              line, 30, 10)
+        elif kk == 3:
+            cwl, cfl, civar = corv.utils.cont_norm_line(10**exp['logwl'], exp['sky'], exp['ivar'],
+                                              line, 30, 10)
+        
+        plt.plot(cwl, cfl - 0.25 * ii, color = cmap(frac))
+        
+    plt.axvline(line, color = 'k', lw = 1, zorder = 0)
+        
+    plt.title(names[kk])
+    plt.xlabel('$\lambda~(\AA)$')
+    if kk > 0:
+        plt.gca().set_yticklabels([])
+    if kk == 0:
+        plt.ylabel('Normalized Flux')
+plt.savefig(outroot + 'balmer_lines.png')
+plt.show()
+
+#%% Stacked Balmer Lines
+
+breakpoints = (np.diff(data['taibeg_mjd']) > 0.5).astype(int)
+break_idx = np.where(breakpoints == 1)[0]
+break_idx = np.concatenate(([0], break_idx, [-1]))
+
+f,axs = plt.subplots(1, 4, figsize = (10, 10))
+
+for kk,line in enumerate(balmerlist):
+    plt.sca(axs[kk])
+    for ii in range(len(break_idx) - 1):
+        
+        frac = ii / len(break_idx)
+        
+        fl, ivar = make_coadd(exps, expstart = break_idx[ii],
+                                  expend = break_idx[ii+1])
+        
+        sky, _ = make_coadd(exps, expstart = break_idx[ii],
+                                  expend = break_idx[ii+1], sky = True)
+        
+        if kk < 3:
+            cwl, cfl, civar = corv.utils.cont_norm_line(lamgrid, fl, ivar,
+                                              line, 30, 10)
+        elif kk == 3:
+            cwl, cfl, civar = corv.utils.cont_norm_line(lamgrid, sky, ivar,
+                                              line, 30, 10)
+        
+        plt.plot(cwl, cfl - 0.25 * ii, color = cmap(frac))
+        
+    plt.axvline(line, color = 'k', lw = 1, zorder = 0)
+    plt.title(names[kk])
+    plt.xlabel('$\lambda~(\AA)$')
+    if kk > 0:
+        plt.gca().set_yticklabels([])
+    if kk == 0:
+        plt.ylabel('Normalized Flux')
+plt.savefig(outroot + 'stacked_balmer_lines.png')
+plt.show()
+
+#%% Prep H-alpha
+
+f,axs = plt.subplots(1, 1, figsize = (5, 10))
+
+tai_max = np.max(data['tai_beg'])
+tai_min = np.min(data['tai_beg'])
+for ii,exp in enumerate(exps):
+    frac = (exp['tai_beg'] - tai_min) / (tai_max - tai_min)
+    
+    cwl, cfl, civar = corv.utils.cont_norm_line(10**exp['logwl'], exp['fl'], exp['ivar'],
+                                          6564.61, 35, 10)
+    
+    plt.plot(cwl, cfl - 0.1 * ii, color = cmap(frac))
+    
+plt.axvline(6564.61, color = 'k', lw = 1, zorder = 0)
+    
+plt.title(names[kk])
+plt.xlabel('$\lambda~(\AA)$')
+plt.ylabel('Normalized Flux')
+plt.savefig(outroot + 'halpha.png')
+plt.show()
+
+cstack = [];
+cstack_ivar = [];
+tai = [];
+
+for ii,exp in enumerate(exps):
+    cwl, cfl, civar = corv.utils.cont_norm_line(10**exp['logwl'], exp['fl'], exp['ivar'], 6564.61, 35, 5)
+    if ii == 0:
+        cstack_wl = cwl[2:-2] # trim ends to prevent errors
+        
+    cfl = np.interp(cstack_wl, cwl, cfl)
+    civar = np.interp(cstack_wl, cwl, civar)
+    
+    cstack.append(cfl)
+    cstack_ivar.append(civar)
+    
+    tai.append(exp['tai_beg'])
+    
+cstack = np.array(cstack)
+cstack_ivar = np.array(cstack_ivar)
+tai = np.array(tai)
+
+vel = 1e-3 * c.c.value * (cstack_wl - 6564.61) / 6564.61
+
+
+f,axs = plt.subplots(1, 1, figsize = (5, 10))
+
+for ii,exp in enumerate(exps):
+    
+    plt.plot(cstack_wl, cstack[ii] - 0.1 * ii, color = 'k')
+    
+plt.axvline(6564.61, color = 'k', lw = 1, zorder = 0)
+    
+plt.title(names[kk])
+plt.xlabel('$\lambda~(\AA)$')
+plt.ylabel('Normalized Flux')
+plt.savefig(outroot + 'halpha_interp.png')
+plt.show()
+
+clean = (cstack < 1.5).all(axis = 1)
+
+cstack = cstack[clean]
+cstack_ivar = cstack_ivar[clean]
+tai = tai[clean]
+
+print(np.sum(clean))
+
+#%%
+
+plt.figure(figsize = (10, 10))
+plt.pcolormesh(vel, np.arange(len(cstack)), cstack, 
+               cmap = 'viridis', vmin = 0.5, vmax = 1)
+plt.show()
+
+#%% Make Line Model
+
+def gaussian(x, mu, a, sig):
+    return a*np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+
+def doublepeak(x, v1, v2, s11, s12, a11, a12, s21, s22, a21, a22):
+    p11 = gaussian(x, v1, a11, s11)
+    p12 = gaussian(x, v1, a12, s12)
+    
+    p21 = gaussian(x, v2, a21, s21)
+    p22 = gaussian(x, v2, a22, s22)
+    
+    summed = p11 + p12 + p21 + p22
+
+    return 1 - summed
+
+rvs = np.linspace(0, 100)
+
+ii = 0
+
+amp = 0.2
+sig = 55
+
+p, cov = scipy.optimize.curve_fit(doublepeak, vel, 
+                                  cstack[ii], p0 = [-170, 70, sig, sig, amp, amp, sig, sig, amp, amp],
+                                  maxfev = 10000)
+
+plt.figure()
+prof = doublepeak(vel, -170, 70, sig, sig, amp, amp, sig, sig, amp, amp)
+plt.plot(vel, cstack[ii])
+plt.plot(vel, prof)
+
+prof = doublepeak(vel, *p)
+plt.plot(vel, cstack[ii])
+plt.plot(vel, prof)
+plt.show()
+
+#%%
+
+hours = (tai * u.second).to(u.hour).value
+hours = hours - hours[0]
+
+
+def linemodel(gamma, dgamma, K1, K2, P, phi, s11, s12, a11, a12, s21, s22, a21, a22):
+    rvs1 = gamma - K1 * np.sin(2 * np.pi * (hours + phi) / P)
+    rvs2 = gamma - dgamma + K2 * np.sin(2 * np.pi * (hours + phi) / P)
+    
+    model = np.zeros((len(vel), len(rvs1))).T
+    
+    for ii in range(len(rvs1)):
+        prof = doublepeak(vel, rvs1[ii], rvs2[ii], s11, s12, a11, a12, s21, s22, a21, a22)
+        
+        ### nuisance term for worse seeing on second night (NOT IN USE)
+        
+#         if ii > 9:
+#             prof = scipy.ndimage.gaussian_filter1d(prof, extrasig / np.median(np.diff(vel)))
+        
+        model[ii] = prof
+        
+    return model
+
+startexp = 0 # Select N exposures. set to None for all
+endexp = len(cstack)
+
+def residual(params):
+    
+    model = linemodel(params['gamma'], params['dgamma'], params['K1'], params['K2'], params['P'], params['phi'],
+                     params['s11'], params['s12'], params['a11'], params['a12'],
+                     params['s21'], params['s22'], params['a21'], params['a22'],)
+    
+    
+    
+    resid = (model - cstack) * np.sqrt(cstack_ivar)
+    
+    return resid[startexp:endexp, :]
+
+params = lmfit.Parameters()
+
+params.add('gamma', value = -10, vary = True)
+params.add('dgamma', value = 0, vary = True)
+params.add('K1', value = 100, min = 0)
+params.add('K2', value = 100, min = 0)
+
+params.add('P', value = 3, vary = False)
+params.add('phi', value = 0.5, vary = True, max = 5, min = -5)
+
+params.add('s11', value = p[2], min = 25)
+params.add('s12', value = p[3], min = 0)
+params.add('a11', value = p[4], min = 0)
+params.add('a12', value = p[5], min = 0)
+
+params.add('s21', value = p[6], min = 25)
+params.add('s22', value = p[7], min = 0)
+params.add('a21', value = p[8], min = 0)
+params.add('a22', value = p[9], min = 0)
+
+#params.add('extrasig', value = 0, min = 0, max = 100, vary = False)
+
+#%%
+
+plt.figure(figsize = (15, 5))
+plt.subplot(131)
+plt.imshow(cstack[startexp:endexp])
+plt.subplot(132)
+model = residual(params) / np.sqrt(cstack_ivar[startexp:endexp]) + cstack[startexp:endexp]
+plt.imshow(model)
+plt.subplot(133)
+plt.imshow(residual(params), vmin = -1.5, vmax = 1.5)
+plt.show()
+
+#%%
+
+periods = np.linspace(1, 24, 5500)
+chis = np.zeros(len(periods))
+
+for ii,period in enumerate(periods):
+    params['P'].set(value = period)
+    resid = residual(params)
+    chi2 = np.sum(resid**2)
+    chis[ii] = chi2
+
+bestperiod = periods[np.argmin(chis)]
+print('period = %.2f hour' % bestperiod)
+
+plt.figure()
+
+plt.plot(periods, chis, 'k')
+plt.show()
+
+#%%
+
+niter = 3
+
+for kk in range(niter):
+    print('='*10)
+    print('iteration %i' % (kk + 1))
+    
+    startexp = 0
+    endexp = len(cstack)
+
+    periods = np.linspace(1, 24, 2500)
+    chis = np.zeros(len(periods))
+    
+    for ii,period in enumerate(periods):
+        params['P'].set(value = period)
+        resid = residual(params)
+        chi2 = np.sum(resid**2)
+        chis[ii] = chi2
+
+    bestperiod = periods[np.argmin(chis)]
+    print('period = %.2f hour' % bestperiod)
+    
+    params['P'].set(value = bestperiod, vary = False)
+    
+
+    res = lmfit.minimize(residual, params, method = 'Nelder-Mead')
+    
+    print('redchi = %.6f' % res.redchi)
+    params = res.params
+
+#%%
+
+plt.figure(figsize = (16, 7))
+
+cmap = 'viridis_r'
+vmin = 0.55
+vmax = 1
+xlim = 1000
+
+plt.subplot(131)
+plt.pcolormesh(vel, np.arange(endexp - startexp), cstack[startexp:endexp], vmin = vmin, vmax = vmax, 
+               cmap = cmap, shading = 'nearest')
+plt.ylabel('Exposure #')
+plt.title("Data")
+plt.gca().invert_yaxis()
+plt.xlim(-xlim, xlim)
+
+
+
+plt.subplot(132)
+plt.pcolormesh(vel, np.arange(endexp - startexp), 
+            residual(res.params) / np.sqrt(cstack_ivar[startexp:endexp]) + cstack[startexp:endexp], 
+               vmin = vmin, vmax = vmax, cmap = cmap, shading = 'nearest')
+plt.xlabel('Velocity (km/s)')
+plt.title('Model')
+plt.yticks([])
+plt.gca().invert_yaxis()
+plt.xlim(-xlim, xlim)
+
+plt.subplot(133)
+plt.pcolormesh(vel, np.arange(endexp - startexp), residual(res.params), vmin = -3, 
+               vmax = 3, cmap = cmap, shading = 'nearest')
+plt.title(r'Residual Significance')
+plt.yticks([])
+plt.gca().invert_yaxis()
+plt.xlim(-xlim, xlim)
+
+plt.subplots_adjust(wspace = 0.01)
+
+plt.savefig(outroot + 'spectrogram.png')
+plt.show()
+
+#%%
+
+model = residual(res.params) / np.sqrt(cstack_ivar[startexp:endexp]) + cstack[startexp:endexp]
+
+
+plt.figure(figsize = (5, 15))
+
+ctr = 0;
+
+for ii in range(len(cstack)):
+
+    plt.plot(vel, cstack[ctr] - ctr/3, zorder = 10, color = 'k')
+    plt.plot(vel, model[ctr] - ctr/3, zorder = 10, color = 'r')
+        
+    ctr+=1
+    
+plt.show()
+
+#%%
+
+params = res.params
+
+bestparams = res.params.copy()
+
+periods = np.linspace(1, 24, 5500)
+chis = np.zeros(len(periods))
+for ii,period in enumerate(periods):
+    params['P'].set(value = period)
+    resid = residual(params)
+    chi2 = np.sum(resid**2) / (len(resid.ravel()) - len(params))
+    chis[ii] = chi2
+    
+bestperiod = periods[np.argmin(chis)]
+
+plt.figure(figsize = (5, 8))
+
+plt.plot(periods, chis, 'k', zorder = 10)
+plt.ylabel('$\chi_r^2$')
+plt.xlabel('Period (hours)')
+plt.axvline(bestperiod, color = 'r')
+plt.title('Minimum: %.4f hours' % bestperiod)
+
+params['P'].set(value = bestperiod)
+plt.show()

@@ -78,22 +78,19 @@ windows = dict(a = 200, b = 200, g = 85, d = 70)
 edges = dict(a = 50, b = 50, g = 20, d = 20)
 lines = ['d', 'g', 'b', 'a']
 
-def make_coadd(exps, expstart = 0, expend = -1, sky = False):
+def make_coadd(exps):
     fls = [];
     ivars = [];
-    
-    if sky:
-        flkey = 'sky'
-    else:
-        flkey = 'fl'
 
-    for nn in np.arange(len(exps))[expstart:expend]:
+    for nn in range(len(exps)):
         exp = exps[nn]
 
-        fls.append(np.interp(loglamgrid, exp['logwl'], (exp[flkey])))
+        fls.append(np.interp(loglamgrid, exp['logwl'], (exp['fl'])))
         ivars.append(np.interp(loglamgrid, exp['logwl'], (exp['ivar'])))
 
     ivars = np.array(ivars)
+    fls = np.array(fls)
+    
     mask = ivars == 0
     ivars[mask] = 1 # dummy
     variances = 1 / ivars
@@ -154,12 +151,19 @@ def get_exposure(bf, rf):
 
 break_wl = 6000
 
+daysec = (1 * u.day).to(u.second).value
+
 def get_exposures(catalogid):
     seltable = lutable[lutable['catalogid'] == '0' + str(catalogid)]
     exps = [];
     for row in seltable:
-        exps.append(get_exposure(exppath  + row['bluefiles'],
-                                 exppath + row['redfiles']))
+        exp = get_exposure(exppath  + row['bluefiles'],
+                                 exppath + row['redfiles'])
+        
+        mjd = exp['tai_beg'] / daysec
+        
+        if mjd > min_mjd and mjd < max_mjd:
+            exps.append(exp)
     return exps
 
 def get_radec(catalogid):
@@ -168,20 +172,6 @@ def get_radec(catalogid):
         ra,dec = f[0].header['RA'], f[0].header['DEC']
     return ra,dec
 
-def get_expdata(exps):
-    keys = exps[0].keys()
-    expdata = {key: [] for key in keys}
-    for exp in exps:
-        for key in keys:
-            datum = exp[key]
-            if not isinstance(datum, np.ndarray):
-                expdata[key].append(datum)
-                
-    for key in keys:
-        if len(expdata[key]) == 0:
-            expdata.pop(key)
-                
-    return Table(expdata)
 #%% Get Data
 
 Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source"
@@ -192,6 +182,9 @@ Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source"
 #     cid = int(sys.argv[1])
 # except:
 #     raise OSError('please pass a catalog ID as an argument!')
+
+min_mjd = 0
+max_mjd = 59220
     
 cid = 4553795905 # for testing purposes
 
@@ -199,11 +192,6 @@ table = rvtable[rvtable['catalogid'] == cid]
 
 exps = get_exposures(cid)
 
-daysec = (1 * u.day).to(u.second).value
-
-data = get_expdata(exps)
-
-data['taibeg_mjd'] = data['tai_beg'] / daysec
 
 # Gaia
 
@@ -231,85 +219,6 @@ except:
     print('dir exists, clearing')
     shutil.rmtree(outdir)
     os.mkdir(outdir)
-
-#%% View Balmer Lines
-
-import matplotlib
-
-cmap = matplotlib.cm.get_cmap('tab10')
-
-balmerlist = [4341.68, 4862.68, 6564.61, 6555.3]
-
-names = [r'H$\gamma$', r'H$\beta$', r'H$\alpha$', 'Sky']
-
-f,axs = plt.subplots(1, 4, figsize = (10, 10))
-
-tai_max = np.max(data['tai_beg'])
-tai_min = np.min(data['tai_beg'])
-
-for kk,line in enumerate(balmerlist):
-    plt.sca(axs[kk])
-    for ii,exp in enumerate(exps):
-        frac = (exp['tai_beg'] - tai_min) / (tai_max - tai_min)
-        
-        if kk < 3:
-            cwl, cfl, civar = corv.utils.cont_norm_line(10**exp['logwl'], exp['fl'], exp['ivar'],
-                                              line, 30, 10)
-        elif kk == 3:
-            cwl, cfl, civar = corv.utils.cont_norm_line(10**exp['logwl'], exp['sky'], exp['ivar'],
-                                              line, 30, 10)
-        
-        plt.plot(cwl, cfl - 0.25 * ii, color = cmap(frac))
-        
-    plt.axvline(line, color = 'k', lw = 1, zorder = 0)
-        
-    plt.title(names[kk])
-    plt.xlabel('$\lambda~(\AA)$')
-    if kk > 0:
-        plt.gca().set_yticklabels([])
-    if kk == 0:
-        plt.ylabel('Normalized Flux')
-plt.savefig(outroot + 'balmer_lines.png')
-plt.show()
-
-#%% Stacked Balmer Lines
-
-breakpoints = (np.diff(data['taibeg_mjd']) > 0.5).astype(int)
-break_idx = np.where(breakpoints == 1)[0]
-break_idx = np.concatenate(([0], break_idx, [-1]))
-
-f,axs = plt.subplots(1, 4, figsize = (10, 10))
-
-for kk,line in enumerate(balmerlist):
-    plt.sca(axs[kk])
-    for ii in range(len(break_idx) - 1):
-        
-        frac = ii / len(break_idx)
-        
-        fl, ivar = make_coadd(exps, expstart = break_idx[ii],
-                                  expend = break_idx[ii+1])
-        
-        sky, _ = make_coadd(exps, expstart = break_idx[ii],
-                                  expend = break_idx[ii+1], sky = True)
-        
-        if kk < 3:
-            cwl, cfl, civar = corv.utils.cont_norm_line(lamgrid, fl, ivar,
-                                              line, 30, 10)
-        elif kk == 3:
-            cwl, cfl, civar = corv.utils.cont_norm_line(lamgrid, sky, ivar,
-                                              line, 30, 10)
-        
-        plt.plot(cwl, cfl - 0.25 * ii, color = cmap(frac))
-        
-    plt.axvline(line, color = 'k', lw = 1, zorder = 0)
-    plt.title(names[kk])
-    plt.xlabel('$\lambda~(\AA)$')
-    if kk > 0:
-        plt.gca().set_yticklabels([])
-    if kk == 0:
-        plt.ylabel('Normalized Flux')
-plt.savefig(outroot + 'stacked_balmer_lines.png')
-plt.show()
     
 #%% Analyze SDSS-V
 
@@ -328,6 +237,27 @@ for exp in tqdm(exps):
                              exp['ivar'][sel], corvmodel, pres.params)
     exp['rv'] = resi.params['RV'].value
     exp['e_rv'] = resi.params['RV'].stderr
+
+def get_expdata(exps):
+    keys = exps[0].keys()
+    expdata = {key: [] for key in keys}
+    for exp in exps:
+        for key in keys:
+            datum = exp[key]
+            if not isinstance(datum, np.ndarray):
+                expdata[key].append(datum)
+                
+    for key in keys:
+        if len(expdata[key]) == 0:
+            expdata.pop(key)
+                
+    return Table(expdata)
+
+daysec = (1 * u.day).to(u.second).value
+
+data = get_expdata(exps)
+
+data['taibeg_mjd'] = data['tai_beg'] / daysec
 
 # Re-make coadd with Doppler-shifted exposures
 
@@ -348,6 +278,45 @@ stack_fl_corr, stack_ivar_corr = make_coadd(exps_corrected)
 
 ra = gaia['ra']
 dec = gaia['dec']
+
+#%% Plot balmer lines
+
+import matplotlib
+
+cmap = matplotlib.cm.get_cmap('jet')
+
+balmerlist = [4341.68, 4862.68, 6564.61, 6564.61]
+
+names = [r'H$\gamma$', r'H$\beta$', r'H$\alpha$', 'Sky']
+
+f,axs = plt.subplots(1, 4, figsize = (10, 10))
+
+tai_max = np.max(data['tai_beg'])
+tai_min = np.min(data['tai_beg'])
+
+for kk,line in enumerate(balmerlist):
+    plt.sca(axs[kk])
+    for ii,exp in enumerate(exps):
+        
+        frac = (exp['tai_beg'] - tai_min) / (tai_max - tai_min)
+        
+        if kk < 3:
+            cwl, cfl, civar = corv.utils.cont_norm_line(10**exp['logwl'], exp['fl'], exp['ivar'],
+                                              line, 30, 10)
+        elif kk == 3:
+            cwl, cfl, civar = corv.utils.cont_norm_line(10**exp['logwl'], exp['sky'], exp['ivar'],
+                                              line, 30, 10)
+        
+        plt.plot(cwl, cfl - 0.25 * ii, color = cmap(frac))
+        
+    plt.title(names[kk])
+    plt.xlabel('$\lambda~(\AA)$')
+    if kk > 0:
+        plt.gca().set_yticklabels([])
+    if kk == 0:
+        plt.ylabel('Normalized Flux')
+plt.savefig(outroot + 'balmer_lines.png')
+plt.show()
 
 #%% Plot Coadd
 
@@ -386,6 +355,19 @@ plt.text(0.97, strt - 4*gap, r'G = %.1f' % (gaia['phot_g_mean_mag']),
 
 plt.savefig(outroot + '001_spec_coadd.png')
 plt.show(block = False)
+
+#%%
+
+plt.plot(lamgrid, stack_fl_corr, 'k')
+plt.xlim(3850, 4050)
+plt.axvline(3971.20, color = 'tab:blue', label = 'H$\epsilon$')
+plt.axvline(3890.12, color = 'tab:blue', label = 'H$\zeta$')
+plt.axvline(3934, color = 'tab:red', label = 'Ca II K')
+plt.legend()
+plt.savefig(outroot + 'ca2k.png')
+plt.show()
+
+
 #%%
 # Re-fit template to corrected coadd, re-fit RVs
 
@@ -409,6 +391,7 @@ expdata_corr['taibeg_mjd'] = expdata_corr['tai_beg'] / daysec
 mjd = np.array(expdata_corr['taibeg_mjd'])
 rv = np.array(expdata_corr['rv'])
 e_rv = np.array(expdata_corr['e_rv'])
+
 
 #%% Fit Atmospheric Parameters to rv-corrected spectrum
 
@@ -445,21 +428,6 @@ plt.show(block = False)
 lamgrid_nm = lamgrid / 10
 spec_nm = np.vstack((lamgrid_nm, stack_fl_corr / np.median(stack_fl_corr))).T
 np.savetxt(outroot + 'sdss5_coadd.sed', spec_nm)
-
-#%% Ca II K
-
-plt.figure(figsize = (8, 5))
-plt.plot(lamgrid, stack_fl_corr, 'k')
-plt.xlim(3850, 4050)
-plt.axvline(3971.20, color = 'tab:blue', label = 'H$\epsilon$')
-plt.axvline(3890.12, color = 'tab:blue', label = 'H$\zeta$')
-plt.axvline(3934, color = 'tab:red', label = 'Ca II K')
-plt.legend()
-plt.xlabel('Wavelength ($\AA$)')
-plt.ylabel('Normalized Flux')
-
-plt.savefig(outroot + 'ca2k.png')
-plt.show()
 
 #%% Gaia CMD
 
@@ -590,6 +558,7 @@ freq, power = ls.autopower(minimum_frequency = 1 / u.day,
                            maximum_frequency = 30 / u.day,
                           normalization = 'psd', samples_per_peak = 100)
 
+#bestf = 1 / (3.0337200361060503 * u.hour)
 bestf = freq[np.argmax(power)]
 bestp = (1/bestf)
 bestp_hr = bestp.to(u.hour).value
@@ -689,8 +658,8 @@ def residual(params):
 params = lmfit.Parameters()
 params.add('gamma', value = -5)
 params.add('K', value = 200, min = 0)
-params.add('phi', value = -1, min = -2 * np.pi, max = 2 * np.pi)
-params.add('P', min = 0, value = bestp_hr, vary =  False)
+params.add('phi', value = 0, min = -2 * np.pi, max = 2 * np.pi)
+params.add('P', min = 1, value = bestp_hr, vary =  False)
 params.add('rvjit', min = 0, max = 250, value = 10, vary =  False)
 
 res = lmfit.minimize(residual, params)
@@ -788,9 +757,9 @@ elif pres.params['logg'].value < 7.5:
 
 m1_phot = evol_model['HR_to_mass'](bp_rp, g_abs)
 
-# if np.isnan(m1_spec) and pres.params['logg'] <= 7:
-#     m1_spec = 0.2
-#     print('off B20 grid, assuming M1 = 0.2')
+if np.isnan(m1_spec) and pres.params['logg'] <= 7:
+    m1_spec = 0.2
+    print('M1 off evol grid, assuming M1 = 0.2')
 
 bestfit = flatchain.mean()
 e_bestfit = flatchain.std()
@@ -1107,22 +1076,22 @@ plt.show()
 ztfg = ztf[gsel & clean]
 ztfr = ztf[rsel & clean]
 
-ztfg['mag_cent'] = ztfg['mag'] - np.nanmedian(ztfg['mag'])
-ztfr['mag_cent'] = ztfr['mag'] - np.nanmedian(ztfr['mag'])
+ztfg['mag_cent'] = ztfg['mag'] - np.median(ztfg['mag'])
+ztfr['mag_cent'] = ztfr['mag'] - np.median(ztfr['mag'])
 
-pmjd = np.concatenate((ztfg['mjd'], ztfr['mjd']))
+mjd = np.concatenate((ztfg['mjd'], ztfr['mjd']))
 mag = np.concatenate((ztfg['mag_cent'], ztfr['mag_cent']))
 e_mag = np.concatenate((ztfg['magerr'], ztfr['magerr']))
 
-idx = np.argsort(pmjd)
-pmjd = pmjd[idx]
+idx = np.argsort(mjd)
+mjd = mjd[idx]
 mag = mag[idx]
 e_mag = e_mag[idx]
 
 flux = 10**(-0.4 * mag)
 flux_err =  e_mag * 10**(-0.4 * mag)
 
-lc = lk.LightCurve(time = pmjd, flux = flux, flux_err = flux_err)
+lc = lk.LightCurve(time = mjd, flux = flux, flux_err = flux_err)
 lc = lc.normalize(unit = 'percent')
 
 ekw = dict(linestyle = 'none', marker = 'o')
@@ -1140,75 +1109,31 @@ pgram = lc.to_periodogram(method = 'lombscargle',
 f = plt.figure(figsize = (6, 5))
 ax = plt.gca()
 pgram.plot(ax = ax, color = 'k')
-plt.title('$P_{peak}$ = %.2f hr' % pgram.period_at_max_power.to(u.hour).value)
+plt.title('$P_{peak}$ = %.5f hr' % pgram.period_at_max_power.to(u.hour).value)
 plt.savefig(outroot + '013_ztf_pgram.png')
 plt.show()
 
-#%% Folded light curve
+#%%
 
-P = pgram.period_at_max_power
-
-f = plt.figure(figsize = (10,6))
-plt.subplot(121)
+f = plt.figure(figsize = (6,6))
 ax = plt.gca()
-lc.fold(P)\
+lc.fold(pgram.period_at_max_power)\
     .errorbar(color = 'gray', alpha = 0.2, marker = 'o', ax = ax)
 
-lc.fold(P)\
-    .bin(P / 50)\
+lc.fold(pgram.period_at_max_power)\
+    .bin(pgram.period_at_max_power / 5)\
         .errorbar(color = 'k', alpha = 1, marker = 'o', ax = ax)
         
 plt.ylim(80, 120)
-plt.xlabel("Phase (P = %.5f hr)" % P.to(u.hour).value)
-plt.title(r'$P = P_{phot}$')
-
-plt.subplot(122)
-ax = plt.gca()
-lc.fold(2*P)\
-    .errorbar(color = 'gray', alpha = 0.2, marker = 'o', ax = ax)
-
-lc.fold(2*P)\
-    .bin(2*P / 50)\
-        .errorbar(color = 'k', alpha = 1, marker = 'o', ax = ax)
-        
-plt.ylim(80, 120)
-plt.xlabel("Phase (P = %.5f hr)" % (2 * P.to(u.hour).value))
-plt.title(r'$P = 2 \times P_{phot}$')
-
-plt.savefig(outroot + '014_ztf_pp.png')
+plt.xlabel("Phase (P = %.5f hr)" % pgram.period_at_max_power.to(u.hour).value)
+plt.savefig(outroot + '014_ztf_pgram.png')
 plt.show()
 
-#%% RVs folded to photometric period
 
-phase = ((mjd) % P.value) / P.value
+#%%
 
-plt.figure(figsize = (10, 6)) 
-plt.subplot(121)
-plt.errorbar(np.concatenate((phase, phase + 1)), 
-             np.concatenate((rv, rv)), 
-             np.concatenate((e_rv, e_rv)),
-           linestyle = 'none', marker = 'o', color = 'k')
 
-plt.xlabel('Phase (P = %.5f hr)' % P.to(u.hour).value)
-plt.ylabel('RV (kms$^{-1}$)')
-plt.xlim(-0.1, 2.1)
-plt.title('$P = P_{phot}$')
 
-phase = ((mjd) % (2* P.value)) / (2 * P.value)
-plt.subplot(122)
-
-plt.errorbar(np.concatenate((phase, phase + 1)), 
-             np.concatenate((rv, rv)), 
-             np.concatenate((e_rv, e_rv)),
-           linestyle = 'none', marker = 'o', color = 'k')
-
-plt.xlabel('Phase (P = %.5f hr)' % (2 * P.to(u.hour).value))
-plt.ylabel('RV (kms$^{-1}$)')
-plt.xlim(-0.1, 2.1)
-plt.title(r'$P = 2 \times P_{phot}$')
-
-plt.savefig(outroot + 'rvs_pp_photperiod.png')
-plt.show()
 
 #%% Combine plots into summary page
 
@@ -1299,15 +1224,10 @@ for file in files[11:14]:
 im5 = append_images(ims, 'horizontal')
 
 merged = append_images([im1, im2, im3, im4, im5], 'vertical')
+
 basewidth = 3000 # sets resolution
+
 wpercent = (basewidth/float(merged.size[0]))
 hsize = int((float(merged.size[1])*float(wpercent)))
 img = merged.resize((basewidth,hsize), Image.ANTIALIAS)
 img.save(outroot + 'summary.jpg')
-
-merged = append_images([im1, im2, im3], 'vertical')
-basewidth = 3000 # sets resolution
-wpercent = (basewidth/float(merged.size[0]))
-hsize = int((float(merged.size[1])*float(wpercent)))
-img = merged.resize((basewidth,hsize), Image.ANTIALIAS)
-img.save(outroot + 'short_summary.jpg')
