@@ -110,7 +110,7 @@ def make_balmer_model(nvoigt=1,
 # Koester DA Model
 
 try:
-    wd_interp = pickle.load(open(basepath + '/pkl/koester_interp.pkl', 'rb'))
+    wd_interp = pickle.load(open(basepath + '/pkl/koester_interp_da.pkl', 'rb'))
 except:
     print('could not find pickled WD models')
 
@@ -178,8 +178,8 @@ def make_koester_model(resolution = 1, centres = default_centres,
                   independent_vars = ['x'],
                   param_names = ['teff', 'logg', 'RV', 'res'])
     
-    model.set_param_hint('teff', min = 3251, max = 39999, value = 12000)
-    model.set_param_hint('logg', min = 6.01, max = 9.49, value = 8)
+    model.set_param_hint('teff', min = 3001, max = 39999, value = 12000)
+    model.set_param_hint('logg', min = 4.51, max = 9.49, value = 8)
     model.set_param_hint('RV', min = -2500, max = 2500, value = 0)
     model.set_param_hint('res', value = resolution, min = 0, vary = False)
     

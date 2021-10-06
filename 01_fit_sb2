@@ -193,7 +193,7 @@ Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source"
 # except:
 #     raise OSError('please pass a catalog ID as an argument!')
     
-cid = 4592943353 # for testing purposes
+cid = 4544917490 # for testing purposes
 
 table = rvtable[rvtable['catalogid'] == cid]
 
