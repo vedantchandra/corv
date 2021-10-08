@@ -38,24 +38,24 @@ import pickle
 
 # Define paths. This can be changed for a different system
 
-corv_path = '/Users/vedantchandra/0_research/corv/'
-WDmodels_path =  '/Users/vedantchandra/0_research/'
+corv_path = '/Users/vedantchandra/0_research/corv/' # path to CORV code
+WDmodels_path =  '/Users/vedantchandra/0_research/' # path to Sihao Cheng's WD_models package (on GitHub). Gives WD evolutionary models for C/O. 
 lookuptable = ('/Users/vedantchandra/0_research/'
                '13_sdss5/06_wd_rv_variability/'
                'tables/lookuptable.fits')
 rvtable_path = ('/Users/vedantchandra/0_research/'
                '13_sdss5/06_wd_rv_variability/'
-               'tables/rvfits_fullspec.fits')
-exppath = '/Users/vedantchandra/0_research/13_sdss5/06_wd_rv_variability/'
+               'tables/rvfits_fullspec.fits') # NOT NEEDED, RVS are now computed here
+exppath = '/Users/vedantchandra/0_research/13_sdss5/06_wd_rv_variability/' # this folder contains Exposures/
 plt.style.use('vedant')
 output_dir = ('/Users/vedantchandra/0_research/13_sdss5/06_wd_rv_variability/'
-              'fig/')
+              'fig/') # where all the output figures go. Creates a new directory for each star, whose name is Gaia source ID
 
 gcns = Table.read('/Users/vedantchandra/0_research/'
-                  '09_gemini_wd/shen_d62/misc_files/GCNS_cat.fits')
+                  '09_gemini_wd/shen_d62/misc_files/GCNS_cat.fits') # Gaia Catalogue of nearby Stars. Rybizki et al (2020). Maybe thin this out. Sub-sample. 
 
 logteff_logg_to_msun_he = pickle.load(
-    open('/Users/vedantchandra/0_research/13_sdss5/06_wd_rv_variability/interp/he_msun.pkl', 'rb'))
+    open('/Users/vedantchandra/0_research/13_sdss5/06_wd_rv_variability/interp/he_msun.pkl', 'rb')) # Interpolator for Helium-core white dwarfs from Istrate (2016) (V will send to K)
 
 # Path-specific imports
 
@@ -78,7 +78,9 @@ windows = dict(a = 200, b = 200, g = 85, d = 70)
 edges = dict(a = 50, b = 50, g = 20, d = 20)
 lines = ['d', 'g', 'b', 'a']
 
-def make_coadd(exps, expstart = 0, expend = -1, sky = False):
+# Signal to noise cut. 
+
+def make_coadd(exps, expstart = 0, expend = -1, sky = False): # think more/read more about the best way to make co-adds, maybe some kind of iterative sigma clipping. 
     fls = [];
     ivars = [];
     
@@ -1222,7 +1224,7 @@ plt.show()
 
 #%% ZTF Photometry
 
-from ztfquery import lightcurve
+from ztfquery import lightcurve # From GitHub: ztfquery
 import lightkurve as lk
 import pandas as pd
 
