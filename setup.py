@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup,find_packages
 
 setup(name='corv',
       version='0.1',
@@ -7,8 +7,8 @@ setup(name='corv',
       author_email='vedantchandra@g.harvard.edu',
       license='MIT',
       url='https://github.com/vedantchandra/corv',
-      package_dir = {},
-      packages=['corv'],
+      package_dir = {"" : "src"},
+      packages=find_packages(where='src'),
       package_data={'corv':['pkl/*']},
       dependency_links = [],
       install_requires=['numpy==1.18.5', 'scipy', 'lmfit', 'matplotlib', 'astropy'],
