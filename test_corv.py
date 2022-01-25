@@ -9,7 +9,7 @@ Created on Wed Aug 11 16:47:04 2021
 from matplotlib import pyplot as plt
 import numpy as np
 
-import corv
+from src import corv
 
 def test_travis():
     wl = np.linspace(4000, 8000, 8000)
