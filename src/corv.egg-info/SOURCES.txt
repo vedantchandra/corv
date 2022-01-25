@@ -1,0 +1,13 @@
+README.md
+setup.py
+src/corv/__init__.py
+src/corv/fit.py
+src/corv/interp.py
+src/corv/models.py
+src/corv/sdss.py
+src/corv/utils.py
+src/corv.egg-info/PKG-INFO
+src/corv.egg-info/SOURCES.txt
+src/corv.egg-info/dependency_links.txt
+src/corv.egg-info/requires.txt
+src/corv.egg-info/top_level.txt
