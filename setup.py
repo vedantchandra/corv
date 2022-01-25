@@ -9,7 +9,7 @@ setup(name='corv',
       url='https://github.com/vedantchandra/corv',
       package_dir = {"" : "src"},
       packages=find_packages(where='src'),
-      package_data={'corv':['pkl/*']},
+      package_data={'corv':['models/*']},
       dependency_links = [],
       install_requires=['numpy', 'scipy', 'lmfit', 'matplotlib', 'astropy'],
       include_package_data=True)

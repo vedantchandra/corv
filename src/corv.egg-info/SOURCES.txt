@@ -5,6 +5,7 @@ src/corv/fit.py
 src/corv/interp.py
 src/corv/models.py
 src/corv/sdss.py
+src/corv/spectral_resampling.py
 src/corv/utils.py
 src/corv.egg-info/PKG-INFO
 src/corv.egg-info/SOURCES.txt

@@ -29,7 +29,8 @@ import os
 import scipy 
 
 basepath = os.path.dirname(os.path.abspath(__file__))
-print(basepath)
+modpath = basepath[:-8] + 'models/'
+#print(modpath)
 
 from . import utils
 
@@ -110,7 +111,7 @@ def make_balmer_model(nvoigt=1,
 # Koester DA Model
 
 try:
-    wd_interp = pickle.load(open(basepath + '/pkl/koester_interp_da.pkl', 'rb'))
+    wd_interp = pickle.load(open(modpath + '/koester_interp_da.pkl', 'rb'))
 except:
     print('could not find pickled WD models')
 
