@@ -9,7 +9,7 @@ Created on Wed Aug 11 16:47:04 2021
 from matplotlib import pyplot as plt
 import numpy as np
 
-from src import corv
+import corv
 
 def test_travis():
     wl = np.linspace(4000, 8000, 8000)
@@ -23,9 +23,9 @@ def test_travis():
     nwl, nfl = corv.models.get_normalized_model(wl, corvmodel, params)
     plt.plot(nwl, nfl, 'r.')
     plt.title('Voigt Balmer')
+    plt.close()
 
 test_travis()
-
 
 # wl = np.linspace(4000, 8000, 8000)
 # plt.figure(figsize = (7,7))
