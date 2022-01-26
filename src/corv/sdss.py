@@ -25,7 +25,7 @@ try:
 	starcat = Table.read(catpath + 'starcat.fits')
 	expcat = Table.read(catpath + 'expcat.fits')
 except:
-	raise FileNotFoundError('star and exposure catalogs not found! check paths and run make_catalogs()')
+	print('star and exposure catalogs not found! check paths and run make_catalogs() if you want to use sdss functionality. otherwise ignore.')
 
 ####### I/O FUNCTIONS #############
 
