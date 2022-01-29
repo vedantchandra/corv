@@ -49,7 +49,7 @@ def normalized_residual(wl, fl, ivar, corvmodel, params):
     return resid
 
 def xcorr_rv(wl, fl, ivar, corvmodel, params,
-             min_rv = -1000, max_rv = 1000, 
+             min_rv = -1500, max_rv = 1500, 
              npoint = 25,
              quad_window = 300):
     """
@@ -100,21 +100,33 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
     
     for ii,rv in enumerate(rvgrid):
         params['RV'].set(value = rv)
-        chi = np.sum(residual(params)**2)
+        chi = np.nansum(residual(params)**2)
         cc[ii] = chi
         
     window = int(quad_window / np.diff(rvgrid)[0])
+
+    # plt.plot(rvgrid, cc)
+    # plt.show()
     
-    argmin = np.argmin(cc)
+    argmin = np.nanargmin(cc)
     c1 = argmin - window
+
+    if c1 < 0:
+        c1 = 0
+
     c2 = argmin + window + 1
+
+    #print(c1, c2)
 
     rvgrid = rvgrid[c1:c2]
     cc = cc[c1:c2]
 
-    pcoef = np.polyfit(rvgrid, cc, 2)
-
-    rv = - 0.5 * pcoef[1] / pcoef[0]  
+    try:
+        pcoef = np.polyfit(rvgrid, cc, 2)
+        rv = - 0.5 * pcoef[1] / pcoef[0]  
+    except:
+        print('pcoef failed!! returning min of chi function')
+        rv = rvgrid[np.nanargmin(cc)]
         
     return rv, rvgrid, cc
 

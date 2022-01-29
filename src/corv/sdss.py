@@ -99,7 +99,7 @@ def get_exposures(catalogid):
 	
 	return exps
 
-def make_coadd(exps, method = 'median'):
+def make_coadd(exps, method = 'ivar_mean'):
 	
 	# Todo: add WDISP here too
 	# Todo: some way to pass velocities here to shift and then co-add
@@ -141,12 +141,16 @@ def make_coadd(exps, method = 'median'):
 
 			if method == 'median':
 				fl[px] = np.median(fl_px[goodmask])
+				sigma[px] = np.sqrt(np.sum(sigma_px[goodmask]**2)) / ngood # CHECK MATH HERE, ERROR ON MEDIAN? 
 			elif method == 'mean':
 				fl[px] = np.mean(fl_px[goodmask])
+				sigma[px] = np.sqrt(np.sum(sigma_px[goodmask]**2)) / ngood
+			elif method == 'ivar_mean':
+				fl[px] = np.average(fl_px[goodmask], weights = 1/sigma_px[goodmask]**2)
+				sigma[px] = np.sqrt(1 / np.sum(1/sigma_px[goodmask]**2))
 			else:
 				print('invalid method!')
 
-			sigma[px] = np.sqrt(np.sum(sigma_px[goodmask]**2)) / ngood # CHECK MATH HERE, ERROR ON MEDIAN? 
 		else:
 			mask[px] = False # where mask == False, there is zero usable data
 			fl[px] = np.nan

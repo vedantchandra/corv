@@ -37,11 +37,15 @@ from . import utils
 c_kms = 2.99792458e5 # speed of light in km/s
 
 # add epsilon?
-default_centres = dict(a = 6564.61, b = 4862.68, g = 4341.68, d = 4102.89)
-default_windows = dict(a = 200, b = 200, g = 80, d = 80)
-default_edges = dict(a = 50, b = 50, g = 20, d = 20)
-default_names = ['d', 'g', 'b', 'a']
+default_centres =  dict(a = 6564.61, b = 4862.68, g = 4341.68, d = 4102.89,
+                 e = 3971.20, z = 3890.12, n = 3835.5,
+             t = 3799.5)
+default_windows = dict(a = 100, b = 100, g = 85, d = 70, e = 30,
+                  z = 25, n = 15, t = 10)
+default_edges = dict(a = 25, b = 25, g = 20, d = 20, 
+                e = 5, z = 5, n = 5, t = 4)
 
+default_names = ['n', 'z', 'e', 'd', 'g', 'b', 'a']
 ### MODEL DEFINITIONS ###
 
 # Balmer Model

@@ -51,15 +51,15 @@ def lineplot(wl, fl, ivar, corvmodel, params, gap = 0.3, printparams = True,
         plt.text(0.97, 0.05, 
                  r'$T_{\mathrm{eff}} = %.0f \pm %.0f\ K$' % 
                  (params['teff'].value, params['teff'].stderr),
-    			transform = plt.gca().transAxes, fontsize = 15, ha = 'right')
+    			transform = plt.gca().transAxes, fontsize = 14, ha = 'right')
     		
-        plt.text(0.97, 0.1, 
+        plt.text(0.97, 0.12, 
                  r'$\log{g} = %.2f \pm %.2f $' % 
                  (params['logg'].value, params['logg'].stderr),
-    			transform = plt.gca().transAxes, fontsize = 15, ha = 'right')
+    			transform = plt.gca().transAxes, fontsize = 14, ha = 'right')
     				 
-        plt.text(0.97, 0.15, r'$\chi_r^2$ = %.2f' % (redchi),
-    			transform = plt.gca().transAxes, fontsize = 15, ha = 'right')
+        plt.text(0.97, 0.19, r'$\chi_r^2$ = %.2f' % (redchi),
+    			transform = plt.gca().transAxes, fontsize = 14, ha = 'right')
         
         
     plt.ylim(-gap * ii, 1 + gap)
