@@ -15,11 +15,19 @@ from astropy.io import fits
 import glob
 from astropy.table import Table
 from tqdm import tqdm
+import socket
+hostname = socket.gethostname()
 
 from . import spectral_resampling
 
-datapath = '/Users/vedantchandra/0_research/01_sdss5/006_build_corv/data/ddcands/' # abs. path with CATID folders
-catpath = '/Users/vedantchandra/0_research/01_sdss5/006_build_corv/cat/' # abs. path with CATID folders
+if hostname[:4] == 'holy':
+	print('using holyoke paths')
+	datapath = '/n/holyscratch01/conroy_lab/vchandra/wd/6_0_4/' # abs. path with CATID folders
+	catpath = '/n/home03/vchandra/wd/01_ddwds/cat/' # abs. path with CATID folders
+else:
+	print('using local paths')
+	datapath = '/Users/vedantchandra/0_research/01_sdss5/006_build_corv/data/ddcands/' # abs. path with CATID folders
+	catpath = '/Users/vedantchandra/0_research/01_sdss5/006_build_corv/cat/' # abs. path with CATID folders
 
 try:
 	starcat = Table.read(catpath + 'starcat.fits')
