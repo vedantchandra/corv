@@ -227,9 +227,6 @@ def make_catalogs(make_filecat = True, make_expcat = True, make_starcat = True):
 		        for expid in (expids):
 
 		            seltab = cidtable[cidtable['expid'] == expid]
-
-		            print(len(seltab))
-
 		            row = dict(seltab[0])
 		            row.pop('camera')
 		            row.pop('filepath')
