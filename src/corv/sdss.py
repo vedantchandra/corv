@@ -172,78 +172,101 @@ def make_coadd(exps, method = 'ivar_mean'):
 ####### CATALOG CONSTRUCTION #############
 
 
-def make_catalogs():
+def make_catalogs(make_filecat = True, make_expcat = True, make_starcat = True):
 
 	# Make filecat, expcat, and starcat given the datapath and output catpath. 
 
 	#### Make `filecat.fits`
 
-	print('making %sfilecat.fits' % catpath)
+	if make_filecat:
 
-	fits_files = glob.glob(datapath + '/*/*.fits')
-	filecat_rows = []; 
+		print('making %sfilecat.fits' % catpath)
 
-	for nn,file in enumerate(tqdm(fits_files)):
-		
-		with fits.open(file) as f:
-		
-			row = dict(f[0].header)
-			row['filepath'] = file
-			row['cid'] = int(file.split('-')[-3])
-			row['camera'] = file.split('-')[-2]
-			row['expid'] = int(file.split('-')[-1].split('.')[0])
+		fits_files = glob.glob(datapath + '/*/*.fits')
+		filecat_rows = []; 
+
+		for nn,file in enumerate(tqdm(fits_files)):
 			
-		filecat_rows.append(row)
-		
+			with fits.open(file) as f:
+			
+				row = dict(f[0].header)
+				row['filepath'] = file
+				row['cid'] = int(file.split('-')[-3])
+				row['camera'] = file.split('-')[-2]
+				row['expid'] = int(file.split('-')[-1].split('.')[0])
+				
+			filecat_rows.append(row)
+			
 
-	filecat = Table(filecat_rows)
-	filecat.write(catpath + 'filecat.fits', overwrite = True)
+		filecat = Table(filecat_rows)
+		print('filecat has %i rows' % len(filecat))
+		filecat.write(catpath + 'filecat.fits', overwrite = True)
 
 	#### Make `expcat.fits`
 
-	print('making %sexpcat.fits' % catpath)
+	if make_expcat:
 
-	expids = np.unique(filecat['expid'])
-	expcat_rows = [];
+		mjds = np.unique(filecat['MJD'])
 
-	for expid in tqdm(expids):
-		seltab = filecat[filecat['expid'] == expid]
-		
-		row = dict(seltab[0])
-		row.pop('camera')
-		row.pop('filepath')
-		
-		redfile = seltab[seltab['camera'] == 'r1']['filepath'][0]
-		bluefile = seltab[seltab['camera'] == 'b1']['filepath'][0]
-		
-		row['rfile'] = redfile
-		row['bfile'] = bluefile
-		
-		row['dr2_id'] = int(seltab['G_DR2'][0])
-		
-		expcat_rows.append(row)
+		expcat_rows = [];
 
-	expcat = Table(expcat_rows)
-	expcat.write(catpath + 'expcat.fits', overwrite = True)
+		for mjd in tqdm(mjds):
+
+		    mjdtable = filecat[filecat['MJD'] == mjd]
+		    
+		    cids = np.unique(mjdtable['cid'])
+		    
+		    for cid in cids:
+		        
+		        cidtable = mjdtable[mjdtable['cid'] == cid]
+
+		        expids = np.unique(cidtable['expid'])
+
+		        for expid in (expids):
+
+		            seltab = cidtable[cidtable['expid'] == expid]
+
+		            print(len(seltab))
+
+		            row = dict(seltab[0])
+		            row.pop('camera')
+		            row.pop('filepath')
+
+		            redfile = seltab[seltab['camera'] == 'r1']['filepath'][0]
+		            bluefile = seltab[seltab['camera'] == 'b1']['filepath'][0]
+
+		            row['rfile'] = redfile
+		            row['bfile'] = bluefile
+
+		            row['dr2_id'] = int(seltab['G_DR2'][0])
+
+		            expcat_rows.append(row)
+
+		expcat = Table(expcat_rows)
+		print('expcat has %i rows' % len(expcat))
+		expcat.write(catpath + 'expcat.fits', overwrite = True)
 
 	#### Make `starcat.fits`
 
-	print('making %sstarcat.fits' % catpath)
+	if make_starcat:
 
-	cids = np.unique(expcat['cid'])
-	starcat_rows = [];
+		print('making %sstarcat.fits' % catpath)
 
-	for cid in tqdm(cids):
-		seltab = expcat[expcat['cid'] == cid]
-		
-		row = {}
-		row['cid'] = cid
-		row['nexp'] = len(seltab)
-		row['dr2_id'] = seltab['dr2_id'][0]
-		row['spec_ra'] = np.round(np.median(seltab['RA']), 5)
-		row['spec_dec'] = np.round(np.median(seltab['DEC']), 5)
-		
-		starcat_rows.append(row)
+		cids = np.unique(expcat['cid'])
+		starcat_rows = [];
 
-	starcat = Table(starcat_rows)
-	starcat.write(catpath + 'starcat.fits', overwrite = True)
+		for cid in tqdm(cids):
+			seltab = expcat[expcat['cid'] == cid]
+			
+			row = {}
+			row['cid'] = cid
+			row['nexp'] = len(seltab)
+			row['dr2_id'] = seltab['dr2_id'][0]
+			row['spec_ra'] = np.round(np.median(seltab['RA']), 5)
+			row['spec_dec'] = np.round(np.median(seltab['DEC']), 5)
+			
+			starcat_rows.append(row)
+
+		starcat = Table(starcat_rows)
+		print('starcat has %i rows' % len(starcat))
+		starcat.write(catpath + 'starcat.fits', overwrite = True)
