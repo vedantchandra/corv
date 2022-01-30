@@ -206,6 +206,8 @@ def make_catalogs(make_filecat = True, make_expcat = True, make_starcat = True):
 
 	if make_expcat:
 
+		filecat = Table.read(catpath + 'filecat.fits')
+
 		mjds = np.unique(filecat['MJD'])
 
 		expcat_rows = [];
@@ -249,6 +251,8 @@ def make_catalogs(make_filecat = True, make_expcat = True, make_starcat = True):
 	#### Make `starcat.fits`
 
 	if make_starcat:
+
+		expcat = Table.read(catpath + 'expcat.fits')
 
 		print('making %sstarcat.fits' % catpath)
 
