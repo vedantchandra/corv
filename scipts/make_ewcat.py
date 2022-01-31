@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
 	with Pool(n_cpu) as pool:
 
-		ewdicts = pool.map(get_ew_dict, starcat['cid'])
+		ewdicts = list(tqdm(pool.imap(get_ew_dict, starcat['cid'])))
 
 	ewtable = Table(ewdicts)
 
