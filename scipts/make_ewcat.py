@@ -40,7 +40,7 @@ if __name__ == '__main__':
 	n_cpu = int(sys.argv[1])
 	print('there are %i CPU cores' % n_cpu)
 
-	if bool(sys.argv[2]): # TEST OR NOT TEST
+	if bool(int(sys.argv[2])): # TEST OR NOT TEST
 		starcat = starcat[:10]
 
 	ewdicts = [];
