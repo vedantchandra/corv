@@ -9,6 +9,7 @@ hostname = socket.gethostname()
 import multiprocessing
 from multiprocessing import Pool
 import astropy
+import sys
 
 #plt.style.use('vedant')
 
@@ -29,16 +30,15 @@ if __name__ == '__main__':
 
 	try:
 		starcat = Table.read(catpath + 'starcat.fits')
-
 		starcat = starcat[0:10]
+		#expcat = Table.read(catpath + 'expcat.fits')
 
-		expcat = Table.read(catpath + 'expcat.fits')
 		#print('starcat has %i stars' % len(starcat))
 	except:
 		pass#print('star and exposure catalogs not found! check paths and run make_catalogs() if you want to use sdss functionality. otherwise ignore.')
 
 
-	n_cpu = multiprocessing.cpu_count()
+	n_cpu = int(sys.argv[1])
 	print('there are %i CPU cores' % n_cpu)
 
 	ewdicts = [];
