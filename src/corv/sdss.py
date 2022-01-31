@@ -12,6 +12,7 @@ Functions specific to SDSS-5, including data processing.
 
 import numpy as np
 from astropy.io import fits
+import astropy
 import glob
 from astropy.table import Table
 from tqdm import tqdm
@@ -19,6 +20,7 @@ import socket
 hostname = socket.gethostname()
 
 from . import spectral_resampling
+from . import utils
 
 if hostname[:4] == 'holy':
 	print('using holyoke paths')
@@ -32,6 +34,7 @@ else:
 try:
 	starcat = Table.read(catpath + 'starcat.fits')
 	expcat = Table.read(catpath + 'expcat.fits')
+	print('starcat has %i stars' % len(starcat))
 except:
 	print('star and exposure catalogs not found! check paths and run make_catalogs() if you want to use sdss functionality. otherwise ignore.')
 
@@ -49,6 +52,79 @@ loglamgrid = np.linspace(loglam0, loglam0 + nwl * step, nwl)
 lamgrid = 10**loglamgrid
 break_wl = 5900
 log_break_wl = np.log10(break_wl)
+
+import lmfit
+
+# ADD HELIUM
+
+default_centres =  dict(ha = 6564.61, hb = 4862.68, hg = 4341.68, hd = 4102.89,
+                 he = 3971.20, hz = 3890.12, hn = 3835.5,
+             ht = 3799.5)
+default_windows = dict(ha = 100, hb = 100, hg = 85, hd = 70, he = 30,
+                  hz = 25, hn = 15, ht = 10)
+default_edges = dict(ha = 25, hb = 25, hg = 20, hd = 20, 
+                he = 5, hz = 5, hn = 5, ht = 4)
+
+default_names = ['hn', 'hz', 'he', 'hd', 'hg', 'hb', 'ha']
+
+def get_ew_line(wl, fl, ivar, line, window = 150, edge = 20, plot = False):
+    
+    cwl, cfl, civar = utils.cont_norm_line(wl, fl, ivar, line, window, edge)
+
+    model = lmfit.models.ConstantModel() - lmfit.models.VoigtModel(prefix = '')
+
+    params = model.make_params()
+    params['center'].set(value = line)
+    params['c'].set(value = 1, vary = False)
+    params['sigma'].set(value = 10)
+    params['amplitude'].set(value = 10)
+
+    res = model.fit(cfl, params = params, x = cwl,
+                   weights = np.sqrt(civar))
+    
+    modfl = model.eval(res.params, x = cwl)
+    
+    if plot:
+
+        plt.plot(cwl, cfl, 'k.', label = 'Data')
+        plt.plot(cwl, model.eval(params, x = cwl))
+
+        plt.plot(cwl, modfl, 'r', label = 'Gaussian Model')
+
+        plt.legend()
+
+        plt.ylabel('Normalized Flux')
+        plt.xlabel(r"$\lambda$ ($\AA$)")
+        plt.show()
+        
+    diff = np.diff(cwl)
+    dx = np.abs(np.concatenate((diff, [diff[-1]])))
+    ew = np.sum((1 - modfl / 1) * dx)
+    
+    
+    return ew, res.params['fwhm'].value, res.params['height'].value
+
+def get_ew_lines(wl, fl, ivar, names = default_names, 
+                 centres = default_centres, windows = default_windows, edges = default_edges, 
+                 plot = False):
+    
+    ret = {};
+    for name in names:
+        ew, fwhm, height = get_ew_line(wl, fl, ivar, centres[name], windows[name], edges[name], plot = plot)
+        ret[name + '_ew'] = ew
+        ret[name + '_fwhm'] = fwhm
+        ret[name + '_height'] = height
+    return ret
+
+def get_ew_dict(cid):
+    exps = get_exposures(cid)
+
+    wl, fl, ivar = make_coadd(exps)
+
+    ew_dict = get_ew_lines(wl, fl, ivar, plot = False)
+    ew_dict['cid'] = cid
+    
+    return ew_dict
 
 def get_exposure(bf, rf):
 	
