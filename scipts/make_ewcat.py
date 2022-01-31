@@ -30,7 +30,6 @@ if __name__ == '__main__':
 
 	try:
 		starcat = Table.read(catpath + 'starcat.fits')
-		starcat = starcat[0:10]
 		#expcat = Table.read(catpath + 'expcat.fits')
 
 		#print('starcat has %i stars' % len(starcat))
@@ -41,7 +40,12 @@ if __name__ == '__main__':
 	n_cpu = int(sys.argv[1])
 	print('there are %i CPU cores' % n_cpu)
 
+	if bool(sys.argv[2]): # TEST OR NOT TEST
+		starcat = starcat[:10]
+
 	ewdicts = [];
+
+	print('fitting EW for %i stars' % len(starcat))
 
 	with Pool(n_cpu) as pool:
 
