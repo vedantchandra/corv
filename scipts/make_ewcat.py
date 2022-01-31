@@ -29,6 +29,9 @@ if __name__ == '__main__':
 
 	try:
 		starcat = Table.read(catpath + 'starcat.fits')
+
+		starcat = starcat[0:10]
+
 		expcat = Table.read(catpath + 'expcat.fits')
 		#print('starcat has %i stars' % len(starcat))
 	except:
