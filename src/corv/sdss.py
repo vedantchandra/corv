@@ -37,7 +37,6 @@ try:
 	print('starcat has %i stars' % len(starcat))
 except:
 	print('star and exposure catalogs not found! check paths and run make_catalogs() if you want to use sdss functionality. otherwise ignore.')
-	raise
 
 ####### I/O FUNCTIONS #############
 
