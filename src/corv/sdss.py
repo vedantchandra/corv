@@ -80,8 +80,13 @@ def get_ew_line(wl, fl, ivar, line, window = 150, edge = 20, plot = False):
     params['sigma'].set(value = 10)
     params['amplitude'].set(value = 10)
 
-    res = model.fit(cfl, params = params, x = cwl,
+    try:
+
+    	res = model.fit(cfl, params = params, x = cwl,
                    weights = np.sqrt(civar))
+    except:
+    	print('fit failed, returning NaN')
+    	return np.nan, np.nan, np.nan
     
     modfl = model.eval(res.params, x = cwl)
     
