@@ -131,6 +131,28 @@ def get_ew_dict(cid):
     
     return ew_dict
 
+def make_dacat(min_ew = 3, max_ew = 50):
+
+	ewcat = Table.read(catpath + 'ewcat.fits')
+
+	DA = np.repeat(True, len(ewcat))
+
+	names = np.flip(['hd', 'hg', 'hb', 'ha'])
+
+	for name in names:
+	    DA = DA & ((ewcat[name + '_ew'] > min_ew) & (ewcat[name + '_ew'] < max_ew))
+
+	print('There are %i stars' % len(DA))
+	print('Of these, %i seem to be DAs' % np.sum(DA))
+
+	ewcat[DA].write(catpath + 'dacat.fits', overwrite = True)
+
+	print(ewcat[~DA])
+
+	print('written %sdacat.fits' % catpath)
+
+
+
 def get_exposure(bf, rf):
 	
 	# Given a red and blue single exposure .fits file, return `exp` object
