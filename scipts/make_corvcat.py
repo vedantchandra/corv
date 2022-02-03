@@ -95,6 +95,13 @@ def full_fit_corv(cid):
         star_header['coadd_rv_err_b'] = np.nan
 
         if debug:
+
+
+            plt.plot(wl, fl)
+            print(np.sum(np.isnan(wl)))
+            print(np.sum(np.isnan(fl)))
+            plt.savefig(catpath + 'debug.png')
+            plt.show()
             raise
     
 
@@ -158,8 +165,8 @@ def full_fit_corv(cid):
             if debug:
 
                 plt.plot(wl_i, fl_i)
-                print(np.sum(np.isnan(wl)))
-                print(np.sum(np.isnan(fl)))
+                print(np.sum(np.isnan(wl_i)))
+                print(np.sum(np.isnan(fl_i)))
                 plt.savefig(catpath + 'debug.png')
                 plt.show()
 
