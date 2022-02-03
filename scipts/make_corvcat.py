@@ -16,7 +16,7 @@ import traceback
 
 #plt.style.use('vedant')
 
-debug = False # raise errors
+debug = True # raise errors
 save_failure = True # save failed spectra to plotpath
 
 import corv
@@ -113,9 +113,9 @@ def full_fit_corv(cid):
         if debug:
             raise
 
-        if e.__class__.__name__ == 'UnboundLocalError':
-            print(traceback.format_exc())
-            raise
+        # if e.__class__.__name__ == 'UnboundLocalError':
+        #     print(traceback.format_exc())
+        #     raise
     
 
     ret_star = [];
@@ -208,7 +208,7 @@ if __name__ == '__main__':
     nstar = int(sys.argv[2])
 
     if nstar > 0: # TEST OR NOT TEST
-        dacat = dacat[:nstar]
+        dacat = dacat[4:nstar]
         print('entering test mode, only fitting %i stars' % nstar)
     elif nstar == 0:
         print('fitting all stars...')
