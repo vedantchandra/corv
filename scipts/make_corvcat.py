@@ -16,7 +16,7 @@ import traceback
 
 #plt.style.use('vedant')
 
-debug = True # raise errors
+debug = False # raise errors
 save_failure = True # save failed spectra to plotpath
 
 import corv
@@ -153,12 +153,9 @@ def full_fit_corv(cid):
             exp_header['rv_init_k'] = np.nan
             exp_header['rv_k'] = np.nan
             exp_header['rv_err_k'] = np.nan
-
             exp_header['rv_init_b'] = np.nan
             exp_header['rv_b'] = np.nan
             exp_header['rv_err_b'] = np.nan
-
-
             exp_header['exp_sn'] = np.nan
             exp_header['exp_sn_est'] = np.nan
 
