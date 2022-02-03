@@ -208,7 +208,7 @@ if __name__ == '__main__':
     nstar = int(sys.argv[2])
 
     if nstar > 0: # TEST OR NOT TEST
-        dacat = dacat[10:nstar]
+        dacat = dacat[8:nstar]
         print('entering test mode, only fitting %i stars' % nstar)
     elif nstar == 0:
         print('fitting all stars...')
