@@ -84,7 +84,7 @@ def full_fit_corv(cid):
         star_header['coadd_rv_err_b'] = coadd_rv_res_b.params['RV'].stderr
     except Exception as e:
         print('coadd fit failed!')
-        print('the exception was %s' % e.__name__)
+        print('the exception was %s' % e.__class__)
         star_header['coadd_teff'] = np.nan
         star_header['coadd_teff_err'] = np.nan
 
@@ -102,7 +102,7 @@ def full_fit_corv(cid):
         if save_failure:
             plt.figure()
             plt.plot(wl, fl)
-            plt.savefig(plotpath + '%i_coaddfailure_%s.jpg' % (cid, e.__name__))
+            plt.savefig(plotpath + '%i_coaddfailure_%s.jpg' % (cid, e.__class__))
             plt.close()
 
         if debug:
@@ -139,7 +139,7 @@ def full_fit_corv(cid):
 
         except Exception as e:
             print('exposure fit failed for some reason!')
-            print('the exception was %s' % e.__name__)
+            print('the exception was %s' % e.__class__)
 
             exp_header['rv_init_k'] = np.nan
             exp_header['rv_k'] = np.nan
@@ -162,7 +162,7 @@ def full_fit_corv(cid):
 
                 plt.figure()
                 plt.plot(wl_i, fl_i)
-                plt.savefig(plotpath + '%i_expfailure_%i_%s.jpg' % (cid,expnum,e.__name__))
+                plt.savefig(plotpath + '%i_expfailure_%i_%s.jpg' % (cid,expnum,e.__class__))
                 plt.close()
 
             if debug:
