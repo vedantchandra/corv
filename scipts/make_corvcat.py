@@ -69,6 +69,7 @@ def full_fit_corv(cid):
         plt.savefig(plotpath + '%i_coadd.jpg' % cid)
         plt.close()
 
+
     try:
 
         coadd_param_res, coadd_rv_res, coadd_rv_init = corv.fit.fit_corv(wl, fl, ivar, 
@@ -90,6 +91,11 @@ def full_fit_corv(cid):
         star_header['coadd_rv_init_b'] = coadd_rv_init_b
         star_header['coadd_rv_b'] = coadd_rv_res_b.params['RV'].value
         star_header['coadd_rv_err_b'] = coadd_rv_res_b.params['RV'].stderr
+
+        if save_failure:
+            plt.figure()
+            corv.utils.lineplot(wl, fl, ivar, kmodel7, coadd_param_res.params)
+            plt.savefig(plotpath + 'fit_%i.jpg' % cid)
 
         # raise UnboundLocalError
 
