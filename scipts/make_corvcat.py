@@ -5,6 +5,7 @@ import glob
 from astropy.table import Table
 from tqdm import tqdm
 import socket
+import os
 
 hostname = socket.gethostname()
 import multiprocessing
@@ -14,6 +15,7 @@ import sys
 #plt.style.use('vedant')
 
 debug = True # raise errors
+save_failure = True # save failed spectra to plotpath
 
 import corv
 
@@ -21,10 +23,12 @@ if hostname[:4] == 'holy':
     #print('using holyoke paths')
     datapath = '/n/holyscratch01/conroy_lab/vchandra/wd/6_0_4/' # abs. path with CATID folders
     catpath = '/n/home03/vchandra/wd/01_ddwds/cat/' # abs. path with CATID folders
+    plotpath = '/n/home03/vchandra/wd/01_ddwds/cat/plots/'
 else:
     #print('using local paths')
     datapath = '/Users/vedantchandra/0_research/01_sdss5/006_build_corv/data/ddcands/' # abs. path with CATID folders
     catpath = '/Users/vedantchandra/0_research/01_sdss5/006_build_corv/cat/' # abs. path with CATID folders
+    plotpath = '/Users/vedantchandra/0_research/01_sdss5/006_build_corv/cat/plots/'
 
 try:
     starcat = Table.read(catpath + 'starcat.fits')
@@ -94,14 +98,13 @@ def full_fit_corv(cid):
         star_header['coadd_rv_b'] = np.nan
         star_header['coadd_rv_err_b'] = np.nan
 
-        if debug:
-
-
+        if save_failure:
+            plt.figure()
             plt.plot(wl, fl)
-            print(np.sum(np.isnan(wl)))
-            print(np.sum(np.isnan(fl)))
-            plt.savefig(catpath + 'debug.png')
-            plt.show()
+            plt.savefig(plotpath + '%i_coaddfailure.jpg' % cid)
+            plt.close()
+
+        if debug:
             raise
     
 
@@ -162,14 +165,13 @@ def full_fit_corv(cid):
             exp_header['exp_sn'] = np.nan
             exp_header['exp_sn_est'] = np.nan
 
-            if debug:
-
+            if save_failure:
+                plt.figure()
                 plt.plot(wl_i, fl_i)
-                print(np.sum(np.isnan(wl_i)))
-                print(np.sum(np.isnan(fl_i)))
-                plt.savefig(catpath + 'debug.png')
-                plt.show()
+                plt.savefig(plotpath + '%i_expfailure_%i.jpg' % (cid,expnum))
+                plt.close()
 
+            if debug:
                 raise
 
         full_header = {**star_header, **exp_header}
