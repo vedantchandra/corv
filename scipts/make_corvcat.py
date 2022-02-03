@@ -63,6 +63,12 @@ def full_fit_corv(cid):
     star_header['coadd_sn'] = coadd_sn
     star_header['coadd_sn_est'] = coadd_sn_est
 
+    if save_failure:
+        plt.figure()
+        plt.plot(wl, fl)
+        plt.savefig(plotpath + '%i_coadd.jpg' % cid)
+        plt.close()
+
     try:
 
         coadd_param_res, coadd_rv_res, coadd_rv_init = corv.fit.fit_corv(wl, fl, ivar, 
@@ -163,7 +169,7 @@ def full_fit_corv(cid):
 
                 plt.figure()
                 plt.plot(wl, fl)
-                plt.savefig(plotpath + '%i_coadd.jpg' % cid)
+                plt.savefig(plotpath + '%i_coadd_expfailure.jpg' % cid)
                 plt.close()
 
                 plt.figure()
