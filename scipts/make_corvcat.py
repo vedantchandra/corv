@@ -159,7 +159,7 @@ def full_fit_corv(cid):
             exp_header['exp_sn'] = np.nan
             exp_header['exp_sn_est'] = np.nan
 
-            if save_failure:
+            if save_failure and e.__class__.__name__ != 'UnboundLocalError': # don't make plot if it's just the coadd fit that failed
 
                 plt.figure()
                 plt.plot(wl, fl)
