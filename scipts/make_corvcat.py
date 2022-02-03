@@ -13,7 +13,7 @@ import sys
 
 #plt.style.use('vedant')
 
-debug = False # raise errors
+debug = True # raise errors
 
 import corv
 
