@@ -149,6 +149,8 @@ if __name__ == '__main__':
         dacat = dacat[:4]
         print('entering test mode, only fitting 4 stars')
 
+    print('going to fit %i stars from DACAT with CORV' % len(dacat))
+
     with Pool(n_cpu) as pool:
 
         corv_fits = list(tqdm(pool.imap(full_fit_corv, dacat['cid'])))
