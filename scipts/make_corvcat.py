@@ -110,7 +110,7 @@ def full_fit_corv(cid):
             plt.savefig(plotpath + '%i_coaddfailure_%s.jpg' % (cid, e.__class__))
             plt.close()
 
-        if debug:
+        if debug and e.__name__ != 'ValueError':
             raise
 
         # if e.__class__.__name__ == 'UnboundLocalError':
@@ -174,7 +174,7 @@ def full_fit_corv(cid):
                 plt.savefig(plotpath + '%i_expfailure_%i_%s.jpg' % (cid,expnum,e.__class__))
                 plt.close()
 
-            if debug:
+            if debug and e.__name__ != 'ValueError':
                 raise
 
         full_header = {**star_header, **exp_header}
