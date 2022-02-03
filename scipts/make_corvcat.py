@@ -107,6 +107,9 @@ def full_fit_corv(cid):
 
         if debug:
             raise
+
+        if e.__class__.__name__ == 'UnboundLocalError':
+            raise
     
 
     ret_star = [];
