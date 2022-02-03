@@ -13,7 +13,7 @@ import sys
 
 #plt.style.use('vedant')
 
-debug = True # raise errors
+debug = False # raise errors
 
 import corv
 
@@ -206,9 +206,6 @@ if __name__ == '__main__':
     corvcat = Table(corv_fits_flat)
 
     corvcat = corvcat.filled(99.0)
-
-    print(corvcat)
-
 
     # for testing:
     import pickle
