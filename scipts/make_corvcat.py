@@ -110,7 +110,7 @@ def full_fit_corv(cid):
             plt.savefig(plotpath + '%i_coaddfailure_%s.jpg' % (cid, e.__class__))
             plt.close()
 
-        if debug and e.__name__ != 'ValueError':
+        if debug and e.__class__.__name__ != 'ValueError':
             raise
 
         # if e.__class__.__name__ == 'UnboundLocalError':
@@ -174,7 +174,7 @@ def full_fit_corv(cid):
                 plt.savefig(plotpath + '%i_expfailure_%i_%s.jpg' % (cid,expnum,e.__class__))
                 plt.close()
 
-            if debug and e.__name__ != 'ValueError':
+            if debug and e.__class__.__name__ != 'ValueError':
                 raise
 
         full_header = {**star_header, **exp_header}
@@ -208,7 +208,7 @@ if __name__ == '__main__':
     nstar = int(sys.argv[2])
 
     if nstar > 0: # TEST OR NOT TEST
-        dacat = dacat[7:nstar]
+        dacat = dacat[:nstar]
         print('entering test mode, only fitting %i stars' % nstar)
     elif nstar == 0:
         print('fitting all stars...')
@@ -228,3 +228,5 @@ if __name__ == '__main__':
     pickle.dump(corvcat, open(catpath + 'corvcat.pkl', 'wb'))
 
     corvcat.write(catpath + 'corvcat.fits', overwrite = True)
+
+    print('finished!!')
