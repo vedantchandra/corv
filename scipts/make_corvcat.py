@@ -56,7 +56,6 @@ def full_fit_corv(cid):
 
     try:
 
-
         coadd_param_res, coadd_rv_res, coadd_rv_init = corv.fit.fit_corv(wl, fl, ivar, 
                                                                      kmodel7, iter_teff = True)
 
@@ -137,8 +136,12 @@ if __name__ == '__main__':
 
     corv_fits_flat = [item for sublist in corv_fits for item in sublist]
 
+    print(corv_fits_flat)
+
     corvcat = Table(corv_fits_flat)
 
     corvcat = corvcat.filled(99.0)
+
+    print(corvcat)
 
     corvcat.write(catpath + 'corvcat.fits', overwrite = True)
