@@ -85,7 +85,7 @@ def full_fit_corv(cid):
         star_header['coadd_rv_b'] = coadd_rv_res_b.params['RV'].value
         star_header['coadd_rv_err_b'] = coadd_rv_res_b.params['RV'].stderr
 
-        raise UnboundLocalError
+        # raise UnboundLocalError
 
     except Exception as e:
         print('coadd fit failed!')
