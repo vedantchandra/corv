@@ -14,7 +14,7 @@ import sys
 
 #plt.style.use('vedant')
 
-debug = True # raise errors
+debug = False # raise errors
 save_failure = True # save failed spectra to plotpath
 
 import corv
@@ -82,8 +82,9 @@ def full_fit_corv(cid):
         star_header['coadd_rv_init_b'] = coadd_rv_init_b
         star_header['coadd_rv_b'] = coadd_rv_res_b.params['RV'].value
         star_header['coadd_rv_err_b'] = coadd_rv_res_b.params['RV'].stderr
-    except:
+    except Exception as e:
         print('coadd fit failed!')
+        print('the exception was %s' % e.__name__)
         star_header['coadd_teff'] = np.nan
         star_header['coadd_teff_err'] = np.nan
 
@@ -101,7 +102,7 @@ def full_fit_corv(cid):
         if save_failure:
             plt.figure()
             plt.plot(wl, fl)
-            plt.savefig(plotpath + '%i_coaddfailure.jpg' % cid)
+            plt.savefig(plotpath + '%i_coaddfailure_%s.jpg' % (cid, e.__name__))
             plt.close()
 
         if debug:
@@ -136,22 +137,9 @@ def full_fit_corv(cid):
             exp_header['exp_sn'] = sn
             exp_header['exp_sn_est'] = sn_est
 
-        except np.linalg.LinAlgError:
-            print('exposure fit failed to converge!')
-
-            exp_header['rv_init_k'] = np.nan
-            exp_header['rv_k'] = np.nan
-            exp_header['rv_err_k'] = np.nan
-
-            exp_header['rv_init_b'] = np.nan
-            exp_header['rv_b'] = np.nan
-            exp_header['rv_err_b'] = np.nan
-
-            exp_header['exp_sn'] = np.nan
-            exp_header['exp_sn_est'] = np.nan
-
-        except:
-            print('exposure fit failed for some other reason!')
+        except Exception as e:
+            print('exposure fit failed for some reason!')
+            print('the exception was %s' % e.__name__)
 
             exp_header['rv_init_k'] = np.nan
             exp_header['rv_k'] = np.nan
@@ -166,9 +154,15 @@ def full_fit_corv(cid):
             exp_header['exp_sn_est'] = np.nan
 
             if save_failure:
+
+                plt.figure()
+                plt.plot(wl, fl)
+                plt.savefig(plotpath + '%i_coadd.jpg' % cid)
+                plt.close()
+
                 plt.figure()
                 plt.plot(wl_i, fl_i)
-                plt.savefig(plotpath + '%i_expfailure_%i.jpg' % (cid,expnum))
+                plt.savefig(plotpath + '%i_expfailure_%i_%s.jpg' % (cid,expnum,e.__name__))
                 plt.close()
 
             if debug:
@@ -202,9 +196,13 @@ if __name__ == '__main__':
     print('there are %i CPU cores' % n_cpu)
     print('going to fit %i stars from DACAT with CORV' % len(dacat))
 
-    if bool(int(sys.argv[2])): # TEST OR NOT TEST
-        dacat = dacat[:4]
-        print('entering test mode, only fitting 4 stars')
+    nstar = int(sys.argv[2])
+
+    if nstar > 0: # TEST OR NOT TEST
+        dacat = dacat[:nstar]
+        print('entering test mode, only fitting %i stars' % nstar)
+    elif nstar == 0:
+        print('fitting all stars...')
 
     with Pool(n_cpu) as pool:
 
