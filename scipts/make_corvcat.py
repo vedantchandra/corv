@@ -11,6 +11,8 @@ hostname = socket.gethostname()
 import multiprocessing
 from multiprocessing import Pool
 import sys
+import traceback
+
 
 #plt.style.use('vedant')
 
@@ -82,6 +84,9 @@ def full_fit_corv(cid):
         star_header['coadd_rv_init_b'] = coadd_rv_init_b
         star_header['coadd_rv_b'] = coadd_rv_res_b.params['RV'].value
         star_header['coadd_rv_err_b'] = coadd_rv_res_b.params['RV'].stderr
+
+        raise UnboundLocalError
+
     except Exception as e:
         print('coadd fit failed!')
         print('the exception was %s' % e.__class__)
@@ -109,6 +114,7 @@ def full_fit_corv(cid):
             raise
 
         if e.__class__.__name__ == 'UnboundLocalError':
+            print(traceback.format_exc())
             raise
     
 
