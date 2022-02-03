@@ -144,12 +144,11 @@ if __name__ == '__main__':
 
     n_cpu = int(sys.argv[1])
     print('there are %i CPU cores' % n_cpu)
+    print('going to fit %i stars from DACAT with CORV' % len(dacat))
 
     if bool(int(sys.argv[2])): # TEST OR NOT TEST
         dacat = dacat[:4]
         print('entering test mode, only fitting 4 stars')
-
-    print('going to fit %i stars from DACAT with CORV' % len(dacat))
 
     with Pool(n_cpu) as pool:
 
