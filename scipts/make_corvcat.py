@@ -96,6 +96,7 @@ def full_fit_corv(cid):
             plt.figure()
             corv.utils.lineplot(wl, fl, ivar, kmodel7, coadd_param_res.params)
             plt.savefig(plotpath + 'fit_%i.jpg' % cid)
+            plt.close()
 
         # raise UnboundLocalError
 
@@ -195,6 +196,9 @@ def full_fit_corv(cid):
                 full_header[key] = np.nan
 
         ret_star.append(full_header)
+
+
+    plt.close('all')
         
     return ret_star
 
