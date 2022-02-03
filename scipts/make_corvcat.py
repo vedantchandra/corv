@@ -63,7 +63,7 @@ def full_fit_corv(cid):
                                                                      bmodel, iter_teff = False)
     except:
         print('coadd fit failed!')
-        return star_header;
+        return [star_header]*nexp;
 
     star_header['coadd_teff'] = coadd_param_res.params['teff'].value
     star_header['coadd_teff_err'] = coadd_param_res.params['teff'].stderr
