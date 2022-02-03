@@ -147,7 +147,7 @@ def make_dacat(min_ew = 3, max_ew = 50):
 
 	ewcat[DA].write(catpath + 'dacat.fits', overwrite = True)
 
-	print(ewcat[~DA])
+	# print(ewcat[~DA])
 
 	print('written %sdacat.fits' % catpath)
 
@@ -240,11 +240,12 @@ def make_coadd(exps, method = 'ivar_mean'):
 		sigma_px = sigmas[:, px]
 		
 		# sigma clipping? disabled for now.. 
-#         fl_px_clipped, lb, ub = stats.sigmaclip(fl_px, low = 5.0, high = 5.0)
-#         sigma_px = sigma_px[(fl_px > lb) & (fl_px < ub)]
-#         fl_px = fl_px_clipped
+		# fl_px_clipped, lb, ub = stats.sigmaclip(fl_px, low = 5.0, high = 5.0)
+		# sigma_px = sigma_px[(fl_px > lb) & (fl_px < ub)]
+		# fl_px = fl_px_clipped
 						
 		goodmask = np.isfinite(sigma_px)
+		goodmask *= (fl_px > 0)
 		ngood = np.sum(goodmask)
 		#nexps[px] = ngood
 
