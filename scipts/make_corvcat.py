@@ -13,6 +13,8 @@ import sys
 
 #plt.style.use('vedant')
 
+debug = True # raise errors
+
 import corv
 
 if hostname[:4] == 'holy':
@@ -26,11 +28,8 @@ else:
 
 try:
     starcat = Table.read(catpath + 'starcat.fits')
-    #expcat = Table.read(catpath + 'expcat.fits')
-
-    #print('starcat has %i stars' % len(starcat))
 except:
-    pass#print('star and exposure catalogs not found! check paths and run make_catalogs() if you want to use sdss functionality. otherwise ignore.')
+    print('star and exposure catalogs not found! check paths and run make_catalogs() if you want to use sdss functionality. otherwise ignore.')
 
 dacat = Table.read(catpath + 'dacat.fits')
 
@@ -53,6 +52,10 @@ def full_fit_corv(cid):
     wl, fl, ivar = corv.sdss.make_coadd(exps, method = 'ivar_mean')
 
     nexp = len(exps['header'])
+
+    coadd_sn, coadd_sn_est = corv.utils.get_medsn(wl, fl, ivar)
+    star_header['coadd_sn'] = coadd_sn
+    star_header['coadd_sn_est'] = coadd_sn_est
 
     try:
 
@@ -90,6 +93,9 @@ def full_fit_corv(cid):
         star_header['coadd_rv_init_b'] = np.nan
         star_header['coadd_rv_b'] = np.nan
         star_header['coadd_rv_err_b'] = np.nan
+
+        if debug:
+            raise
     
 
     ret_star = [];
@@ -100,7 +106,7 @@ def full_fit_corv(cid):
 
         wl_i, fl_i, ivar_i = 10**data['logwl'], data['fl'], data['ivar']
 
-        wlsel = (wl_i > 3600) & (wl_i < 9000)
+        wlsel = (wl_i > 3750) & (wl_i < 8500)
         wl_i, fl_i, ivar_i = wl_i[wlsel], fl_i[wlsel], ivar_i[wlsel]
 
         try:
@@ -114,8 +120,15 @@ def full_fit_corv(cid):
             exp_header['rv_init_b'] = exp_rv_init_b
             exp_header['rv_b'] = exp_res_b.params['RV'].value
             exp_header['rv_err_b'] = exp_res_b.params['RV'].stderr
-        except:
-            print('exposure fit failed!')
+
+
+            sn, sn_est = corv.utils.get_medsn(wl_i, fl_i, ivar_i)
+            exp_header['exp_sn'] = sn
+            exp_header['exp_sn_est'] = sn_est
+
+        except np.linalg.LinAlgError:
+            print('exposure fit failed to converge!')
+
             exp_header['rv_init_k'] = np.nan
             exp_header['rv_k'] = np.nan
             exp_header['rv_err_k'] = np.nan
@@ -124,7 +137,41 @@ def full_fit_corv(cid):
             exp_header['rv_b'] = np.nan
             exp_header['rv_err_b'] = np.nan
 
+            exp_header['exp_sn'] = np.nan
+            exp_header['exp_sn_est'] = np.nan
+
+        except:
+            print('exposure fit failed for some other reason!')
+
+            exp_header['rv_init_k'] = np.nan
+            exp_header['rv_k'] = np.nan
+            exp_header['rv_err_k'] = np.nan
+
+            exp_header['rv_init_b'] = np.nan
+            exp_header['rv_b'] = np.nan
+            exp_header['rv_err_b'] = np.nan
+
+
+            exp_header['exp_sn'] = np.nan
+            exp_header['exp_sn_est'] = np.nan
+
+            if debug:
+
+                plt.plot(wl_i, fl_i)
+                print(np.sum(np.isnan(wl)))
+                print(np.sum(np.isnan(fl)))
+                plt.savefig(catpath + 'debug.png')
+                plt.show()
+
+                raise
+
         full_header = {**star_header, **exp_header}
+
+        # check and remove NONE (stderr returns None if cov mat fails)
+
+        for key,value in full_header.items():
+            if value is None:
+                full_header[key] = np.nan
 
         ret_star.append(full_header)
         
@@ -161,5 +208,10 @@ if __name__ == '__main__':
     corvcat = corvcat.filled(99.0)
 
     print(corvcat)
+
+
+    # for testing:
+    import pickle
+    pickle.dump(corvcat, open(catpath + 'corvcat.pkl', 'wb'))
 
     corvcat.write(catpath + 'corvcat.fits', overwrite = True)

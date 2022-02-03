@@ -202,3 +202,11 @@ def doppler_shift(wl, fl, dv):
        new_fl = np.interp(new_wl, wl, fl)
        return new_fl
         
+def get_medsn(wl, fl, ivar):
+    wlsel = (wl > 5400) & (wl < 5800)
+    cwl, cfl, civar = wl[wlsel], fl[wlsel], ivar[wlsel]
+    medsn = np.nanmedian(cfl * np.sqrt(civar))
+    contnorm = cfl / np.polyval(np.polyfit(cwl, cfl, 2), cwl)
+    sigma_est = np.std(contnorm)
+    
+    return medsn, 1/sigma_est

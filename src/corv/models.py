@@ -140,8 +140,13 @@ def get_koester(x, teff, logg, RV, res):
     """
     df = np.sqrt((1 - RV/c_kms)/(1 + RV/c_kms))
     x_shifted = x * df
-    flam = 10**wd_interp((logg, np.log10(teff), np.log10(x_shifted)))
-    flam = flam / np.median(flam) # bring to order unity
+
+    flam = np.zeros_like(x_shifted) * np.nan
+
+    in_bounds = (x_shifted > 3600) & (x_shifted < 9000)
+    flam[in_bounds] = 10**wd_interp((logg, np.log10(teff), np.log10(x_shifted[in_bounds])))
+
+    flam = flam / np.nanmedian(flam) # bring to order unity
     
     dx = np.median(np.diff(x))
     window = res / dx

@@ -34,7 +34,7 @@ else:
 try:
 	starcat = Table.read(catpath + 'starcat.fits')
 	expcat = Table.read(catpath + 'expcat.fits')
-	print('starcat has %i stars' % len(starcat))
+	#print('starcat has %i stars' % len(starcat))
 except:
 	print('star and exposure catalogs not found! check paths and run make_catalogs() if you want to use sdss functionality. otherwise ignore.')
 
