@@ -61,23 +61,36 @@ def full_fit_corv(cid):
 
         coadd_param_res_b, coadd_rv_res_b, coadd_rv_init_b = corv.fit.fit_corv(wl, fl, ivar, 
                                                                      bmodel, iter_teff = False)
+
+        star_header['coadd_teff'] = coadd_param_res.params['teff'].value
+        star_header['coadd_teff_err'] = coadd_param_res.params['teff'].stderr
+
+        star_header['coadd_logg'] = coadd_param_res.params['logg'].value
+        star_header['coadd_logg_err'] = coadd_param_res.params['logg'].stderr
+
+        star_header['coadd_rv_init_k'] = coadd_rv_init
+        star_header['coadd_rv_k'] = coadd_rv_res.params['RV'].value
+        star_header['coadd_rv_err_k'] = coadd_rv_res.params['RV'].stderr
+
+        star_header['coadd_rv_init_b'] = coadd_rv_init_b
+        star_header['coadd_rv_b'] = coadd_rv_res_b.params['RV'].value
+        star_header['coadd_rv_err_b'] = coadd_rv_res_b.params['RV'].stderr
     except:
         print('coadd fit failed!')
-        return [star_header]*nexp;
+        star_header['coadd_teff'] = np.nan
+        star_header['coadd_teff_err'] = np.nan
 
-    star_header['coadd_teff'] = coadd_param_res.params['teff'].value
-    star_header['coadd_teff_err'] = coadd_param_res.params['teff'].stderr
+        star_header['coadd_logg'] = np.nan
+        star_header['coadd_logg_err'] = np.nan
 
-    star_header['coadd_logg'] = coadd_param_res.params['logg'].value
-    star_header['coadd_logg_err'] = coadd_param_res.params['logg'].stderr
+        star_header['coadd_rv_init_k'] = np.nan
+        star_header['coadd_rv_k'] = np.nan
+        star_header['coadd_rv_err_k'] = np.nan
 
-    star_header['coadd_rv_init_k'] = coadd_rv_init
-    star_header['coadd_rv_k'] = coadd_rv_res.params['RV'].value
-    star_header['coadd_rv_err_k'] = coadd_rv_res.params['RV'].stderr
-
-    star_header['coadd_rv_init_b'] = coadd_rv_init_b
-    star_header['coadd_rv_b'] = coadd_rv_res_b.params['RV'].value
-    star_header['coadd_rv_err_b'] = coadd_rv_res_b.params['RV'].stderr
+        star_header['coadd_rv_init_b'] = np.nan
+        star_header['coadd_rv_b'] = np.nan
+        star_header['coadd_rv_err_b'] = np.nan
+    
 
     ret_star = [];
 
@@ -93,17 +106,23 @@ def full_fit_corv(cid):
         try:
             exp_res_k, exp_rv_init_k = corv.fit.fit_rv(wl_i, fl_i, ivar_i, kmodel4, coadd_param_res.params)
             exp_res_b, exp_rv_init_b = corv.fit.fit_rv(wl_i, fl_i, ivar_i, bmodel, coadd_param_res_b.params)
+
+            exp_header['rv_init_k'] = exp_rv_init_k
+            exp_header['rv_k'] = exp_res_k.params['RV'].value
+            exp_header['rv_err_k'] = exp_res_k.params['RV'].stderr
+
+            exp_header['rv_init_b'] = exp_rv_init_b
+            exp_header['rv_b'] = exp_res_b.params['RV'].value
+            exp_header['rv_err_b'] = exp_res_b.params['RV'].stderr
         except:
             print('exposure fit failed!')
-            continue
+            exp_header['rv_init_k'] = np.nan
+            exp_header['rv_k'] = np.nan
+            exp_header['rv_err_k'] = np.nan
 
-        exp_header['rv_init_k'] = exp_rv_init_k
-        exp_header['rv_k'] = exp_res_k.params['RV'].value
-        exp_header['rv_err_k'] = exp_res_k.params['RV'].stderr
-
-        exp_header['rv_init_b'] = exp_rv_init_b
-        exp_header['rv_b'] = exp_res_b.params['RV'].value
-        exp_header['rv_err_b'] = exp_res_b.params['RV'].stderr
+            exp_header['rv_init_b'] = np.nan
+            exp_header['rv_b'] = np.nan
+            exp_header['rv_err_b'] = np.nan
 
         full_header = {**star_header, **exp_header}
 
@@ -127,16 +146,14 @@ if __name__ == '__main__':
     print('there are %i CPU cores' % n_cpu)
 
     if bool(int(sys.argv[2])): # TEST OR NOT TEST
-        dacat = dacat[:10]
-        print('entering test mode, only fitting 10 stars')
+        dacat = dacat[:4]
+        print('entering test mode, only fitting 4 stars')
 
     with Pool(n_cpu) as pool:
 
         corv_fits = list(tqdm(pool.imap(full_fit_corv, dacat['cid'])))
 
     corv_fits_flat = [item for sublist in corv_fits for item in sublist]
-
-    print(corv_fits_flat)
 
     corvcat = Table(corv_fits_flat)
 
