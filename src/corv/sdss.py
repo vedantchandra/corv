@@ -22,14 +22,21 @@ hostname = socket.gethostname()
 from . import spectral_resampling
 from . import utils
 
-if hostname[:4] == 'holy':
-	print('using holyoke paths')
-	datapath = '/n/holyscratch01/conroy_lab/vchandra/wd/6_0_4/' # abs. path with CATID folders
-	catpath = '/n/home03/vchandra/wd/01_ddwds/cat/' # abs. path with CATID folders
-else:
-	print('using local paths')
-	datapath = '/Users/vedantchandra/0_research/01_sdss5/006_build_corv/data/ddcands/' # abs. path with CATID folders
-	catpath = '/Users/vedantchandra/0_research/01_sdss5/006_build_corv/cat/' # abs. path with CATID folders
+# if hostname[:4] == 'holy':
+# 	print('using holyoke paths')
+# 	datapath = '/n/holyscratch01/conroy_lab/vchandra/wd/6_0_4/' # abs. path with CATID folders
+# 	catpath = '/n/home03/vchandra/wd/01_ddwds/cat/' # abs. path with CATID folders
+# else:
+# 	print('using local paths')
+# 	datapath = '/Users/vedantchandra/0_research/01_sdss5/006_build_corv/data/ddcands/' # abs. path with CATID folders
+# 	catpath = '/Users/vedantchandra/0_research/01_sdss5/006_build_corv/cat/' # abs. path with CATID folders
+
+## FOR COMMISSIONING
+
+datapath = '/Users/vedantchandra/0_research/01_sdss5/006_build_corv/data/comm/'
+catpath = '/Users/vedantchandra/0_research/01_sdss5/006_build_corv/data/comm_cat/'
+
+print(catpath)
 
 try:
 	starcat = Table.read(catpath + 'starcat.fits')
@@ -37,6 +44,7 @@ try:
 	#print('starcat has %i stars' % len(starcat))
 except:
 	print('star and exposure catalogs not found! check paths and run make_catalogs() if you want to use sdss functionality. otherwise ignore.')
+
 
 ####### I/O FUNCTIONS #############
 
@@ -276,7 +284,8 @@ def make_coadd(exps, method = 'ivar_mean'):
 ####### CATALOG CONSTRUCTION #############
 
 
-def make_catalogs(make_filecat = True, make_expcat = True, make_starcat = True):
+def make_catalogs(make_filecat = True, make_expcat = True, make_starcat = True,
+	catpath = catpath, datapath = datapath):
 
 	# Make filecat, expcat, and starcat given the datapath and output catpath. 
 
