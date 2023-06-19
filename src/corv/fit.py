@@ -50,8 +50,8 @@ def normalized_residual(wl, fl, ivar, corvmodel, params):
 
 def xcorr_rv(wl, fl, ivar, corvmodel, params,
              min_rv = -1500, max_rv = 1500, 
-             npoint = 25,
-             quad_window = 300):
+             npoints = 250,
+             quad_window = 300, plot = False):
     """
     Find best RV via x-correlation on grid and quadratic fitting the peak.
 
@@ -71,8 +71,8 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
         lower end of RV grid. The default is -1500.
     max_rv : float, optional
         upper end of RV grid. The default is 1500.
-    npoint : int, optional
-        numver of equi-spaced points in RV grid. The default is 250.
+    resolution : float, optional
+        resolution of the rv search grid in km/s. Default is 0.5 km/s.
     quad_window : float, optional
         window around minimum to fit quadratic model, 
         in km/s. The default is 300.
@@ -87,12 +87,10 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
         chi-square statistic evaluated at each RV.
 
     """
-    
-    if npoint is None:
-        npoint = int(max_rv - min_rv)
         
-    rvgrid = np.linspace(min_rv, max_rv, npoint)
-    cc = np.zeros(npoint)
+    rvgrid = np.linspace(min_rv, max_rv, npoints)
+    cc = np.zeros(len(rvgrid))
+    rcc = np.zeros(len(rvgrid))
     params = corvmodel.make_params()
     
     residual = lambda params: normalized_residual(wl, fl, ivar, 
@@ -100,8 +98,11 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
     
     for ii,rv in enumerate(rvgrid):
         params['RV'].set(value = rv)
-        chi = np.nansum(residual(params)**2)
+        resid = residual(params)
+        chi = np.nansum(resid**2)
+        redchi = np.nansum(resid**2) / (len(resid) - 1)
         cc[ii] = chi
+        rcc[ii] = redchi
         
     window = int(quad_window / np.diff(rvgrid)[0])
 
@@ -120,15 +121,46 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
 
     rvgrid = rvgrid[c1:c2]
     cc = cc[c1:c2]
+    rcc = rcc[c1:c2]
 
     try:
         pcoef = np.polyfit(rvgrid, cc, 2)
         rv = - 0.5 * pcoef[1] / pcoef[0]  
-    except:
-        print('pcoef failed!! returning min of chi function')
-        rv = rvgrid[np.nanargmin(cc)]
         
-    return rv, rvgrid, cc
+        t_cc = np.interp(rv, rvgrid, cc) 
+        
+        intersect = ( (-pcoef[1] + np.sqrt(pcoef[1]**2 - 4 * pcoef[0] * (pcoef[2] - t_cc - 1))) / (2 * pcoef[0]), 
+                     (-pcoef[1] - np.sqrt(pcoef[1]**2 - 4 * pcoef[0] * (pcoef[2] - t_cc - 1))) / (2 * pcoef[0]) )
+        
+        e_rv = np.abs(intersect[0] - intersect[1]) / 2
+        redchi = np.interp(rv, rvgrid, rcc)
+    
+        if plot:
+            xgrid = np.linspace(min(rvgrid), max(rvgrid), 50)
+            
+            plt.figure(figsize = (10,5))
+            pcoef = np.polyfit(rvgrid, cc, 2)
+            plt.plot(rvgrid, cc, label = r'Actual $\chi^2$ curve')
+            plt.plot(xgrid, pcoef[0]*xgrid**2 + pcoef[1]*xgrid + pcoef[2], label = r'Fitted $\chi^2$ curve')
+            
+            plt.axvline(x = rv)
+            plt.axvline(x = rv + e_rv, ls = ':')
+            plt.axvline(x = rv - e_rv, ls = ':')
+            plt.axhline(y = t_cc, label = 'Minimum $\chi^2$')
+    except:
+        print('pcoef failed!! returning min of chi function & err = 999')
+        rv = rvgrid[np.nanargmin(cc)]
+        e_rv = 999
+        
+    
+    #print(t_cc)
+    #print(cc)
+    #print(temp)
+    #
+    #e_rv = (np.abs(min(rvgrid[temp]) -max(rvgrid[temp])) / 2)
+    
+        
+    return rv, e_rv, redchi, rvgrid, cc
 
 def fit_rv(wl, fl, ivar, corvmodel, params, fix_nonrv = True, 
            xcorr_kw = {}):
@@ -161,21 +193,21 @@ def fit_rv(wl, fl, ivar, corvmodel, params, fix_nonrv = True,
 
     """
     
-    rv_init, rvgrid, cc = xcorr_rv(wl, fl, ivar, corvmodel, params,
+    rv, e_rv, redchi, rvgrid, cc = xcorr_rv(wl, fl, ivar, corvmodel, params,
                                    **xcorr_kw)
     
-    if fix_nonrv:
-        for param in params:
-            params[param].set(vary = False)
+    #if fix_nonrv:
+    #    for param in params:
+    #        params[param].set(vary = False)
         
-    params['RV'].set(value = rv_init, vary = True)
+    #params['RV'].set(value = rv_init, vary = True)
 
-    residual = lambda params: normalized_residual(wl, fl, ivar, 
-                                                  corvmodel, params)
+    #residual = lambda params: normalized_residual(wl, fl, ivar, 
+    #                                              corvmodel, params)
     
-    res = lmfit.minimize(residual, params)
+    #res = lmfit.minimize(residual, params)
     
-    return res, rv_init
+    return rv, e_rv, redchi
 
 def fit_corv(wl, fl, ivar, corvmodel, xcorr_kw = {},
                   iter_teff = False,
@@ -235,6 +267,6 @@ def fit_corv(wl, fl, ivar, corvmodel, xcorr_kw = {},
         
     bestparams = param_res.params.copy()
     
-    rv_res, rv_init = fit_rv(wl, fl, ivar, corvmodel, bestparams, **xcorr_kw)
+    rv, e_rv, redchi = fit_rv(wl, fl, ivar, corvmodel, bestparams, **xcorr_kw)
             
-    return param_res, rv_res, rv_init
+    return rv, e_rv, redchi, param_res
