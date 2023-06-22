@@ -50,7 +50,7 @@ def normalized_residual(wl, fl, ivar, corvmodel, params):
 
 def xcorr_rv(wl, fl, ivar, corvmodel, params,
              min_rv = -1500, max_rv = 1500, 
-             npoints = 250,
+             npoints = 500,
              quad_window = 300, plot = False):
     """
     Find best RV via x-correlation on grid and quadratic fitting the peak.
@@ -127,7 +127,7 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
         pcoef = np.polyfit(rvgrid, cc, 2)
         rv = - 0.5 * pcoef[1] / pcoef[0]  
         
-        t_cc = np.interp(rv, rvgrid, cc) 
+        t_cc = pcoef[0] * rv**2 + pcoef[1] * rv + pcoef[2]
         
         intersect = ( (-pcoef[1] + np.sqrt(pcoef[1]**2 - 4 * pcoef[0] * (pcoef[2] - t_cc - 1))) / (2 * pcoef[0]), 
                      (-pcoef[1] - np.sqrt(pcoef[1]**2 - 4 * pcoef[0] * (pcoef[2] - t_cc - 1))) / (2 * pcoef[0]) )
@@ -138,7 +138,7 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
         if plot:
             xgrid = np.linspace(min(rvgrid), max(rvgrid), 50)
             
-            plt.figure(figsize = (10,5))
+            f = plt.figure(figsize = (10,5))
             pcoef = np.polyfit(rvgrid, cc, 2)
             plt.plot(rvgrid, cc, label = r'Actual $\chi^2$ curve')
             plt.plot(xgrid, pcoef[0]*xgrid**2 + pcoef[1]*xgrid + pcoef[2], label = r'Fitted $\chi^2$ curve')
@@ -147,6 +147,9 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
             plt.axvline(x = rv + e_rv, ls = ':')
             plt.axvline(x = rv - e_rv, ls = ':')
             plt.axhline(y = t_cc, label = 'Minimum $\chi^2$')
+            plt.legend()
+            
+        return rv, e_rv, redchi, rvgrid, cc, f
     except:
         print('pcoef failed!! returning min of chi function & err = 999')
         rv = rvgrid[np.nanargmin(cc)]
@@ -193,7 +196,7 @@ def fit_rv(wl, fl, ivar, corvmodel, params, fix_nonrv = True,
 
     """
     
-    rv, e_rv, redchi, rvgrid, cc = xcorr_rv(wl, fl, ivar, corvmodel, params,
+    rv, e_rv, redchi, rvgrid, cc, f = xcorr_rv(wl, fl, ivar, corvmodel, params,
                                    **xcorr_kw)
     
     #if fix_nonrv:
@@ -207,7 +210,7 @@ def fit_rv(wl, fl, ivar, corvmodel, params, fix_nonrv = True,
     
     #res = lmfit.minimize(residual, params)
     
-    return rv, e_rv, redchi
+    return rv, e_rv, redchi, f
 
 def fit_corv(wl, fl, ivar, corvmodel, xcorr_kw = {},
                   iter_teff = False,
@@ -267,6 +270,6 @@ def fit_corv(wl, fl, ivar, corvmodel, xcorr_kw = {},
         
     bestparams = param_res.params.copy()
     
-    rv, e_rv, redchi = fit_rv(wl, fl, ivar, corvmodel, bestparams, **xcorr_kw)
+    rv, e_rv, redchi, f = fit_rv(wl, fl, ivar, corvmodel, bestparams, **xcorr_kw)
             
-    return rv, e_rv, redchi, param_res
+    return rv, e_rv, redchi, param_res, f

@@ -2,6 +2,8 @@
 
 this package contains routines to model the spectra of compact objects (e.g. white dwarfs and M-dwarfs), and estimate their radial velocities. 
 
+NOTE: `corv` returns statistical errors only. There's an additional systematic error in the measurements from the choice of templates. `corv` RVs are generally good to ~12-18 km/s.
+
 ## Contributors
 
 [Vedant Chandra](https://vedantchandra.com/) (Harvard)
