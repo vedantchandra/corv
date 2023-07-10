@@ -91,11 +91,11 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
     rvgrid = np.linspace(min_rv, max_rv, npoints)
     cc = np.zeros(len(rvgrid))
     rcc = np.zeros(len(rvgrid))
-    params = corvmodel.make_params()
+    #params = corvmodel.make_params()
     
     residual = lambda params: normalized_residual(wl, fl, ivar, 
                                                   corvmodel, params)
-    
+    #print(params)
     for ii,rv in enumerate(rvgrid):
         params['RV'].set(value = rv)
         resid = residual(params)
@@ -123,6 +123,8 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
     cc = cc[c1:c2]
     rcc = rcc[c1:c2]
 
+    #plt.plot(rvgrid,rcc)
+    
     try:
         pcoef = np.polyfit(rvgrid, cc, 2)
         rv = - 0.5 * pcoef[1] / pcoef[0]  
@@ -149,7 +151,7 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
             plt.axhline(y = t_cc, label = 'Minimum $\chi^2$')
             plt.legend()
             
-        return rv, e_rv, redchi, rvgrid, cc, f
+        return rv, e_rv, redchi, rvgrid, cc
     except:
         print('pcoef failed!! returning min of chi function & err = 999')
         rv = rvgrid[np.nanargmin(cc)]
@@ -196,7 +198,7 @@ def fit_rv(wl, fl, ivar, corvmodel, params, fix_nonrv = True,
 
     """
     
-    rv, e_rv, redchi, rvgrid, cc, f = xcorr_rv(wl, fl, ivar, corvmodel, params,
+    rv, e_rv, redchi, rvgrid, cc = xcorr_rv(wl, fl, ivar, corvmodel, params,
                                    **xcorr_kw)
     
     #if fix_nonrv:
@@ -210,7 +212,7 @@ def fit_rv(wl, fl, ivar, corvmodel, params, fix_nonrv = True,
     
     #res = lmfit.minimize(residual, params)
     
-    return rv, e_rv, redchi, f
+    return rv, e_rv, redchi
 
 def fit_corv(wl, fl, ivar, corvmodel, xcorr_kw = {},
                   iter_teff = False,
@@ -270,6 +272,6 @@ def fit_corv(wl, fl, ivar, corvmodel, xcorr_kw = {},
         
     bestparams = param_res.params.copy()
     
-    rv, e_rv, redchi, f = fit_rv(wl, fl, ivar, corvmodel, bestparams, **xcorr_kw)
+    rv, e_rv, redchi = fit_rv(wl, fl, ivar, corvmodel, bestparams, **xcorr_kw)
             
-    return rv, e_rv, redchi, param_res, f
+    return rv, e_rv, redchi, param_res
