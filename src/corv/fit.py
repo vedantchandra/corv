@@ -13,7 +13,7 @@ import numpy as np
 from . import utils
 from . import models
 
-def normalized_residual(wl, fl, ivar, corvmodel, params):
+def normalized_residual(wl, fl, ivar, corvmodel, params, fit_window = False):
     """
     Error-scaled residuals between data and evaluated model
 
@@ -42,6 +42,21 @@ def normalized_residual(wl, fl, ivar, corvmodel, params):
                                             corvmodel.centres,
                                             corvmodel.windows,
                                             corvmodel.edges)
+        
+    if fit_window:
+        for ii in range(len(nivar)):
+            in_center = []
+                        
+            for key in corvmodel.centres:
+                center = corvmodel.centres[key]
+                
+                if (center - 25 < wl[ii] < center + 25):
+                    in_center.append(True)
+                else:
+                    in_center.append(False)
+                    
+            if not True in in_center:
+                nivar[ii] = 0            
     
     _,nmodel = models.get_normalized_model(wl, corvmodel, params)
     resid = (nfl - nmodel) * np.sqrt(nivar)
@@ -94,7 +109,7 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
     #params = corvmodel.make_params()
     
     residual = lambda params: normalized_residual(wl, fl, ivar, 
-                                                  corvmodel, params)
+                                                  corvmodel, params, fit_window = True)
     #print(params)
     for ii,rv in enumerate(rvgrid):
         params['RV'].set(value = rv)
