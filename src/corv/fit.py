@@ -13,7 +13,7 @@ import numpy as np
 from . import utils
 from . import models
 
-def normalized_residual(wl, fl, ivar, corvmodel, params):
+def normalized_residual(wl, fl, ivar, corvmodel, params, fit_window = None):
     """
     Error-scaled residuals between data and evaluated model
 
@@ -42,6 +42,21 @@ def normalized_residual(wl, fl, ivar, corvmodel, params):
                                             corvmodel.centres,
                                             corvmodel.windows,
                                             corvmodel.edges)
+        
+    if fit_window is not None:
+        for ii in range(len(nivar)):
+            in_center = []
+                        
+            for key in corvmodel.centres:
+                center = corvmodel.centres[key]
+                
+                if (center - fit_window < wl[ii] < center + fit_window):
+                    in_center.append(True)
+                else:
+                    in_center.append(False)
+                    
+            if not True in in_center:
+                nivar[ii] = 0            
     
     _,nmodel = models.get_normalized_model(wl, corvmodel, params)
     resid = (nfl - nmodel) * np.sqrt(nivar)
@@ -50,7 +65,7 @@ def normalized_residual(wl, fl, ivar, corvmodel, params):
 
 def xcorr_rv(wl, fl, ivar, corvmodel, params,
              min_rv = -1500, max_rv = 1500, 
-             npoints = 250,
+             npoints = 500,
              quad_window = 300, plot = False):
     """
     Find best RV via x-correlation on grid and quadratic fitting the peak.
@@ -91,11 +106,11 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
     rvgrid = np.linspace(min_rv, max_rv, npoints)
     cc = np.zeros(len(rvgrid))
     rcc = np.zeros(len(rvgrid))
-    params = corvmodel.make_params()
+    #params = corvmodel.make_params()
     
     residual = lambda params: normalized_residual(wl, fl, ivar, 
-                                                  corvmodel, params)
-    
+                                                  corvmodel, params, fit_window = 25)
+    #print(params)
     for ii,rv in enumerate(rvgrid):
         params['RV'].set(value = rv)
         resid = residual(params)
@@ -123,11 +138,13 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
     cc = cc[c1:c2]
     rcc = rcc[c1:c2]
 
+    #plt.plot(rvgrid,rcc)
+    
     try:
         pcoef = np.polyfit(rvgrid, cc, 2)
         rv = - 0.5 * pcoef[1] / pcoef[0]  
         
-        t_cc = np.interp(rv, rvgrid, cc) 
+        t_cc = pcoef[0] * rv**2 + pcoef[1] * rv + pcoef[2]
         
         intersect = ( (-pcoef[1] + np.sqrt(pcoef[1]**2 - 4 * pcoef[0] * (pcoef[2] - t_cc - 1))) / (2 * pcoef[0]), 
                      (-pcoef[1] - np.sqrt(pcoef[1]**2 - 4 * pcoef[0] * (pcoef[2] - t_cc - 1))) / (2 * pcoef[0]) )
@@ -138,7 +155,7 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
         if plot:
             xgrid = np.linspace(min(rvgrid), max(rvgrid), 50)
             
-            plt.figure(figsize = (10,5))
+            f = plt.figure(figsize = (10,5))
             pcoef = np.polyfit(rvgrid, cc, 2)
             plt.plot(rvgrid, cc, label = r'Actual $\chi^2$ curve')
             plt.plot(xgrid, pcoef[0]*xgrid**2 + pcoef[1]*xgrid + pcoef[2], label = r'Fitted $\chi^2$ curve')
@@ -147,6 +164,9 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
             plt.axvline(x = rv + e_rv, ls = ':')
             plt.axvline(x = rv - e_rv, ls = ':')
             plt.axhline(y = t_cc, label = 'Minimum $\chi^2$')
+            plt.legend()
+            
+        return rv, e_rv, redchi, rvgrid, cc
     except:
         print('pcoef failed!! returning min of chi function & err = 999')
         rv = rvgrid[np.nanargmin(cc)]

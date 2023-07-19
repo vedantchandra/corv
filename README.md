@@ -8,4 +8,6 @@ Note: `corv` only returns statistical errors. There's an additional systematic e
 
 [Vedant Chandra](https://vedantchandra.com/) (Harvard)
 
+[Stefan Arseneau](https://stefanarseneau.github.io) (Johns Hopkins)
+
 [Keith P. Inight](https://warwick.ac.uk/fac/sci/physics/research/astro/people/keithinight/) (Warwick)
