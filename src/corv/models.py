@@ -115,7 +115,7 @@ def make_balmer_model(nvoigt=1,
 # Koester DA Model
 
 try:
-    wd_interp = pickle.load(open('/home/arseneau/research/white-dwarfs/models/koester_interp_da.pkl', 'rb'))
+    wd_interp = pickle.load(open('/home/arseneau/research/white-dwarfs/corv-dev/models/koester_interp_da.pkl', 'rb'))
 except:
     print('could not find pickled WD models')
 
