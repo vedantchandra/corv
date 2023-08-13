@@ -12,8 +12,16 @@ import scipy
 import matplotlib.pyplot as plt
 from astropy import constants as c
 
+import re
+import pickle
+from scipy.interpolate import RegularGridInterpolator
+from astropy.table import Table
+import glob
+
+#plt.style.use('./stefan.mplstyle')
+
 def lineplot(wl, fl, ivar, corvmodel, params, gap = 0.3, printparams = True,
-             figsize = (6, 5)):
+             figsize = (10, 7)):
     
     model = corvmodel.eval(params, x = wl)
     
@@ -21,6 +29,7 @@ def lineplot(wl, fl, ivar, corvmodel, params, gap = 0.3, printparams = True,
     dof = 0
     
     f = plt.figure(figsize = figsize)
+    
     
     for ii,line in enumerate(corvmodel.names):
         
@@ -42,6 +51,8 @@ def lineplot(wl, fl, ivar, corvmodel, params, gap = 0.3, printparams = True,
         dof += len(cfl)
         
     redchi = chi2 / (dof - len(params))
+    
+    
         
     plt.xlabel(r'$\mathrm{\Delta \lambda}\ (\mathrm{\AA})$')
     plt.ylabel('Normalized Flux')
@@ -210,3 +221,190 @@ def get_medsn(wl, fl, ivar):
     sigma_est = np.std(contnorm)
     
     return medsn, 1/sigma_est
+
+def build_montreal_da(path, outpath = None):
+    files = glob.glob(path + '/*')
+    with open(files[0]) as f:
+        lines = f.read().splitlines()
+    
+    table = Table()
+    dat = []
+    
+    with open(files[0]) as f:
+        lines = f.read().splitlines()
+        
+    base_wavl = []
+        
+    for ii in range(len(lines)):        
+        if 'Effective temperature' in lines[ii]:
+            base_wavl = np.array(re.split('\s+', ''.join(lines[1:ii])))[1:].astype(float)
+            break                
+                
+    for file in files:
+        with open(file) as f:
+            lines = f.read().splitlines()
+                
+        prev_ii = 0
+            
+        first = True
+        
+        for ii in range(len(lines)):        
+            if 'Effective temperature' in lines[ii]:
+                if first:
+                    wavl = np.array(re.split('\s+', ''.join(lines[1:ii])))[1:].astype(float)
+                    first = False
+                    prev_ii = ii
+                    continue
+                    
+                #print(prev_ii)
+                                
+                teff = float(re.split('\s+', lines[prev_ii])[4])
+                logg = np.log10(float(re.split('\s+', lines[prev_ii])[7]))
+                
+                if not first:
+                    fl = re.split('\s+', ''.join(lines[prev_ii+1:ii]))
+                    for jj, num in enumerate(fl):
+                        if 'E' not in num:
+                            if '+' in num:
+                                num = num.split('-')
+                                num = 'E'.join(num)
+                            elif ('-' in num) and (num[0] != '-'):
+                                num = num.split('-')
+                                num = 'E-'.join(num)
+                            elif ('-' in num) and (num[0] == '-'):
+                                num = num.split('-')
+                                num = 'E-'.join(num)
+                                num = num[1:]
+                            fl[jj] = num
+                    try:
+                        fl = np.array([float(val) for val in fl])
+                    except:
+                        fl = fl[1:]
+                        fl = np.array([float(val) for val in fl])
+                        
+                    dat.append([logg, teff, np.interp(base_wavl, wavl, fl)])                                                   
+                    #fls[str(teff) + ' ' + str(logg)] = fl
+                    
+                    prev_ii = ii
+        
+                
+    table['teff'] = np.array(dat).T[1]
+    table['logg'] = np.array(dat).T[0]
+    table['fl'] = np.array(dat).T[2]
+    
+    teffs = sorted(list(set(table['teff'])))
+    loggs = sorted(list(set(table['logg'])))
+    
+    values = np.zeros((len(teffs), len(loggs), 3747))
+    
+    for i in range(len(teffs)):
+        for j in range(len(loggs)):
+            try:
+                values[i,j] = table[np.all([table['teff'] == teffs[i], table['logg'] == loggs[j]], axis = 0)]['fl'][0]
+            except:
+                values[i,j,k] = np.zeros(3747)
+                
+    model_spec = RegularGridInterpolator((teffs, loggs), values)
+    
+    if outpath is not None:
+        # open a file, where you ant to store the data
+        interp_file = open(outpath + '/montreal_da.pkl', 'wb')
+        
+        # dump information to that file
+        pickle.dump(model_spec, interp_file)
+        np.save(outpath + '/montreal_da_wavl', base_wavl)
+    
+    return base_wavl, model_spec
+
+
+def build_montreal_db(path, outpath = None):
+    table = Table()
+    dat = []
+    files = glob.glob(path + '/*')
+    
+    with open(files[0]) as f:
+        lines = f.read().splitlines()
+        
+    base_wavl = []
+        
+    for ii in range(len(lines)):        
+        if 'Effective temperature' in lines[ii]:
+            base_wavl = np.array(re.split('\s+', ''.join(lines[1:ii])))[1:].astype(float)
+            break   
+    
+    for file in files:
+        with open(file) as f:
+            lines = f.read().splitlines()
+                
+        prev_ii = 0
+            
+        first = True
+            
+        for ii in range(len(lines)):        
+            if 'Effective temperature' in lines[ii]:
+                if first:
+                    wavl = np.array(re.split('\s+', ''.join(lines[1:ii])))[1:].astype(float)
+                    first = False
+                    prev_ii = ii
+                    continue
+                                    
+                teff = float(re.split('\s+', lines[prev_ii])[4])
+                logg = np.log10(float(re.split('\s+', lines[prev_ii])[7]))
+                he = float(re.split('\s+', lines[prev_ii])[-1])
+                            
+                if not first:
+                    fl = re.split('\s+', ''.join(lines[prev_ii+1:ii]))
+                    for jj, num in enumerate(fl):
+                        if 'E' not in num:
+                            if '+' in num:
+                                num = num.split('-')
+                                num = 'E'.join(num)
+                            elif ('-' in num) and (num[0] != '-'):
+                                num = num.split('-')
+                                num = 'E-'.join(num)
+                            elif ('-' in num) and (num[0] == '-'):
+                                num = num.split('-')
+                                num = 'E-'.join(num)
+                                num = num[1:]
+                            fl[jj] = num
+                    try:
+                        fl = np.array([float(val) for val in fl])
+                    except:
+                        fl = fl[1:]
+                        fl = np.array([float(val) for val in fl])
+                        
+                    dat.append([logg, teff, he, np.interp(base_wavl, wavl, fl)])                                                   
+                    #fls[str(teff) + ' ' + str(logg)] = fl
+                    
+                    prev_ii = ii
+                    
+    table['logg'] = np.array(dat).T[0]
+    table['teff'] = np.array(dat).T[1]
+    table['y'] = np.array(dat).T[2]
+    table['fl'] = np.array(dat).T[3]
+
+    teffs = sorted(list(set(table['teff'])))
+    loggs = sorted(list(set(table['logg'])))
+    hes = sorted(list(set(table['y'])))
+    
+    values = np.zeros((len(teffs), len(loggs), len(hes), 2711))
+    
+    for i in range(len(teffs)):
+        for j in range(len(loggs)):
+            for k in range(len(hes)):
+                try:
+                    values[i,j,k] = table[np.all([table['teff'] == teffs[i], table['logg'] == loggs[j], table['y'] == hes[k]], axis = 0)]['fl'][0]
+                except:
+                    values[i,j,k] = np.zeros(2711)
+    
+    model_spec = RegularGridInterpolator((teffs, loggs, hes), values)
+    
+    if outpath is not None:
+        # open a file, where you ant to store the data
+        interp_file = open(outpath + '/montreal_db.pkl', 'wb')
+        
+        # dump information to that file
+        pickle.dump(model_spec, interp_file)
+        np.save(outpath + '/montreal_db_wavl', base_wavl)
+    
+    return base_wavl, model_spec

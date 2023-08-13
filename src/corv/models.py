@@ -30,7 +30,7 @@ import scipy
 
 basepath = os.path.dirname(os.path.abspath(__file__))
 modpath = basepath[:-8] + 'models/'
-#print(modpath)
+#wd_interp = pickle.load(open('/home/arseneau/research/white-dwarfs/models/koester_interp_da.pkl', 'rb'))
 
 from . import utils
 
@@ -115,7 +115,7 @@ def make_balmer_model(nvoigt=1,
 # Koester DA Model
 
 try:
-    wd_interp = pickle.load(open('/home/arseneau/research/white-dwarfs/corv-dev/models/koester_interp_da.pkl', 'rb'))
+    wd_interp = pickle.load(open('/home/arseneau/research/white-dwarfs/models/koester_interp_da.pkl', 'rb'))
 except:
     print('could not find pickled WD models')
 
