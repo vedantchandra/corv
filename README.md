@@ -2,12 +2,8 @@
 
 this package contains routines to model the spectra of compact objects (e.g. white dwarfs and M-dwarfs), and estimate their radial velocities. 
 
-<<<<<<< HEAD
 NOTE: `corv` returns statistical errors only. There's an additional systematic error in the measurements from the choice of templates. `corv` RVs are generally good to ~12-18 km/s.
-	Also, 
-=======
-Note: `corv` only returns statistical errors. There's an additional systematic error that's not included in the uncertainty returned. Generally, radial velocities are good to ~12-15km/s.
->>>>>>> master
+    Also, the montreal DA models don't work on this branch right now. Working on it!
 
 ## Contributors
 
