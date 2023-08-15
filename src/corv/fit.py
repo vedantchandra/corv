@@ -66,7 +66,7 @@ def normalized_residual(wl, fl, ivar, corvmodel, params, fit_window = None):
 def xcorr_rv(wl, fl, ivar, corvmodel, params,
              min_rv = -1500, max_rv = 1500, 
              npoints = 500,
-             quad_window = 300, plot = False):
+             quad_window = 150, plot = False):
     """
     Find best RV via x-correlation on grid and quadratic fitting the peak.
 
@@ -288,5 +288,100 @@ def fit_corv(wl, fl, ivar, corvmodel, xcorr_kw = {},
     bestparams = param_res.params.copy()
     
     rv, e_rv, redchi = fit_rv(wl, fl, ivar, corvmodel, bestparams, **xcorr_kw)
+    
+    param_res.params['RV'].value = rv
             
     return rv, e_rv, redchi, param_res
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def xcorr_rv_nt(mastar_fl, wl, fl, ivar, plot = False, min_rv = -1500, max_rv = 1500, npoint = 250, quad_window = 300):     
+    rvgrid = np.arange(min_rv, max_rv, 0.5)
+    cc = np.zeros(len(rvgrid))
+    rcc = np.zeros(len(rvgrid))
+                
+    for ii,rv in enumerate(rvgrid):
+        resid = (mastar_fl - utils.doppler_shift(wl, fl, rv))**2 * ivar
+        chi = np.nansum(resid)
+        redchi = np.nansum(resid) / (len(resid) - 1)
+        cc[ii] = chi
+        rcc[ii] = redchi
+        
+    window = int(quad_window / np.diff(rvgrid)[0])
+
+    # plt.plot(rvgrid, cc)
+    # plt.show()
+    
+    argmin = np.nanargmin(cc)
+    c1 = argmin - window
+
+    if c1 < 0:
+        c1 = 0
+
+    c2 = argmin + window + 1
+
+    #print(c1, c2)
+
+    rvgrid = rvgrid[c1:c2]
+    cc = cc[c1:c2]
+    rcc = rcc[c1:c2]
+
+    try:
+        pcoef = np.polyfit(rvgrid, cc, 2)
+        rv = - 0.5 * pcoef[1] / pcoef[0]  
+        
+        t_cc = pcoef[0] * rv**2 + pcoef[1] * rv + pcoef[2]
+        
+        intersect = ( (-pcoef[1] + np.sqrt(pcoef[1]**2 - 4 * pcoef[0] * (pcoef[2] - t_cc - 1))) / (2 * pcoef[0]), 
+                     (-pcoef[1] - np.sqrt(pcoef[1]**2 - 4 * pcoef[0] * (pcoef[2] - t_cc - 1))) / (2 * pcoef[0]) )
+        
+        e_rv = np.abs(intersect[0] - intersect[1]) / 2
+        redchi = np.interp(rv, rvgrid, rcc)
+    
+        if plot:
+            xgrid = np.linspace(min(rvgrid), max(rvgrid), 50)
+            
+            plt.figure(figsize = (10,5))
+            pcoef = np.polyfit(rvgrid, cc, 2)
+            plt.plot(rvgrid, cc, label = r'Actual $\chi^2$ curve')
+            plt.plot(xgrid, pcoef[0]*xgrid**2 + pcoef[1]*xgrid + pcoef[2], label = r'Fitted $\chi^2$ curve')
+            
+            plt.axvline(x = rv)
+            plt.axvline(x = rv + e_rv, ls = ':')
+            plt.axvline(x = rv - e_rv, ls = ':')
+            plt.axhline(y = t_cc, label = 'Minimum $\chi^2$')
+    except:
+        print('pcoef failed!! returning min of chi function & err = 999')
+        rv = rvgrid[np.nanargmin(cc)]
+        e_rv = 999
+    
+    #rv = rvgrid[np.nanargmin(cc)]
+        
+    return rv, e_rv, redchi, rvgrid, cc
+
+def fit_without_interpolator(table, wl, fl, ivar):
+    chi2 = []
+    table_fl = [np.interp(wl, table['wl'][i], table['fl'][i]) for i in range(len(table))]
+    
+    for i in range(len(table_fl)):   
+        chi2.append(sum( (fl - table_fl[i])**2 * ivar ))
+        
+        
+    rv, e_rv, redchi, rvgrid, cc = xcorr_rv_nt(table_fl[np.nanargmin(chi2)], wl, fl, ivar, plot = True)
+    
+    plt.figure(figsize = (10,5))
+    plt.plot(wl, utils.continuum_normalize(wl, fl)[1])
+    plt.plot(wl, table_fl[np.nanargmin(chi2)])
+    
+    return rv, e_rv, redchi, np.nanargmin(chi2)

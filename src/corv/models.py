@@ -28,9 +28,16 @@ import pickle
 import os
 import scipy 
 
+from . import utils
+
 basepath = os.path.dirname(os.path.abspath(__file__))
 modpath = basepath[:-8] + 'models/'
 #wd_interp = pickle.load(open('/home/arseneau/research/white-dwarfs/models/koester_interp_da.pkl', 'rb'))
+
+print('building montreal models')
+print(basepath + '/models/montreal_da')
+base_wavl_da, montreal_da_interp, montreal_da_table = utils.build_montreal_da(basepath + '/models/montreal_da')
+
 
 from . import utils
 
@@ -203,11 +210,11 @@ def make_koester_model(resolution = 1, centres = default_centres,
 
 # Montreal DA Model
 
-try:
-    montreal_da_interp = pickle.load(open(basepath + '/models/montreal_da.pkl', 'rb'))
-    base_wavl_da = np.load(basepath + '/models/montreal_da_wavl.npy')
-except:
-    print('could not find pickled Montreal DA WD models')
+#try:
+#montreal_da_interp = pickle.load(open(basepath + '/models/montreal_da.pkl', 'rb'))
+#base_wavl_da = np.load(basepath + '/models/montreal_da_wavl.npy')
+#except:
+#    print('could not find pickled Montreal DA WD models')
 
 def get_montreal_da(x, teff, logg, RV, res):
     """

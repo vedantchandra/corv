@@ -17,6 +17,7 @@ import pickle
 from scipy.interpolate import RegularGridInterpolator
 from astropy.table import Table
 import glob
+from tqdm import tqdm
 
 #plt.style.use('./stefan.mplstyle')
 
@@ -207,11 +208,11 @@ def vac2air(wv):
                             / (146. - _tl**2) + 2.5540e-4 / (41. - _tl**2)))
 
 def doppler_shift(wl, fl, dv):
-       c = 2.99792458e5
-       df = np.sqrt((1 - dv/c)/(1 + dv/c)) 
-       new_wl = wl * df
-       new_fl = np.interp(new_wl, wl, fl)
-       return new_fl
+    c = 2.99792458e5
+    df = np.sqrt((1 - dv/c)/(1 + dv/c)) 
+    new_wl = wl * df
+    new_fl = np.interp(new_wl, wl, fl)
+    return new_fl
         
 def get_medsn(wl, fl, ivar):
     wlsel = (wl > 5400) & (wl < 5800)
@@ -224,6 +225,7 @@ def get_medsn(wl, fl, ivar):
 
 def build_montreal_da(path, outpath = None):
     files = glob.glob(path + '/*')
+    print(files)
     with open(files[0]) as f:
         lines = f.read().splitlines()
     
@@ -282,7 +284,7 @@ def build_montreal_da(path, outpath = None):
                         fl = fl[1:]
                         fl = np.array([float(val) for val in fl])
                         
-                    dat.append([logg, teff, np.interp(base_wavl, wavl, fl)])                                                   
+                    dat.append([logg, teff, np.interp(base_wavl, wavl, fl), base_wavl])                                                   
                     #fls[str(teff) + ' ' + str(logg)] = fl
                     
                     prev_ii = ii
@@ -290,7 +292,11 @@ def build_montreal_da(path, outpath = None):
                 
     table['teff'] = np.array(dat).T[1]
     table['logg'] = np.array(dat).T[0]
-    table['fl'] = np.array(dat).T[2]
+    table['wl'] = air2vac(np.array(dat).T[3])
+    table['fl'] = (2.99792458e21*1000*np.array(dat).T[2]) / (table['wl'])**2 # convert from erg cm^2 s^1 Hz^-1 ---> erg cm^2 s^1 A^-1
+    
+    table['fl'] = [continuum_normalize(table['wl'][i], table['fl'][i], avg_size = 300)[1] for i in tqdm(range(len(table)))]
+    
     
     teffs = sorted(list(set(table['teff'])))
     loggs = sorted(list(set(table['logg'])))
@@ -314,7 +320,7 @@ def build_montreal_da(path, outpath = None):
         pickle.dump(model_spec, interp_file)
         np.save(outpath + '/montreal_da_wavl', base_wavl)
     
-    return base_wavl, model_spec
+    return base_wavl, model_spec, table
 
 
 def build_montreal_db(path, outpath = None):
@@ -381,7 +387,7 @@ def build_montreal_db(path, outpath = None):
     table['logg'] = np.array(dat).T[0]
     table['teff'] = np.array(dat).T[1]
     table['y'] = np.array(dat).T[2]
-    table['fl'] = np.array(dat).T[3]
+    table['fl'] = [continuum_normalize(base_wavl, np.array(dat).T[3][i]) for i in tqdm(range(len(np.array(dat).T[3])))]
 
     teffs = sorted(list(set(table['teff'])))
     loggs = sorted(list(set(table['logg'])))
@@ -408,3 +414,32 @@ def build_montreal_db(path, outpath = None):
         np.save(outpath + '/montreal_db_wavl', base_wavl)
     
     return base_wavl, model_spec
+
+def continuum_normalize(wl, fl, ivar = None, avg_size = 150, ret_cont = False):
+    
+    fl_norm = np.zeros(np.size(fl))
+    fl_cont = np.zeros(np.size(fl))
+    
+    ivar_yes = 0
+    if ivar is not None:
+        ivar_yes = 1
+        ivar_norm = np.zeros(np.size(fl))
+        
+    for i in range(np.size(wl)):
+        wl_clip = ((wl[i]-avg_size/2)<wl) * (wl<(wl[i]+avg_size/2))
+        fl_cont[i] = np.median(fl[wl_clip])
+        if ivar_yes:
+            ivar_norm[i] = ivar[i]*np.median(fl[wl_clip])**2
+    
+    fl_norm = fl/fl_cont
+    
+    if ret_cont:
+        if ivar_yes:
+            return wl, fl_norm, ivar_norm, fl_cont
+        else:
+            return wl, fl_norm, fl_cont
+    else:
+        if ivar_yes:
+            return wl, fl_norm, ivar_norm
+        else:
+            return wl, fl_norm
