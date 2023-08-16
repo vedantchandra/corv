@@ -17,6 +17,7 @@ import pickle
 from scipy.interpolate import RegularGridInterpolator
 from astropy.table import Table
 import glob
+from . import models
 from tqdm import tqdm
 
 #plt.style.use('./stefan.mplstyle')
@@ -225,7 +226,6 @@ def get_medsn(wl, fl, ivar):
 
 def build_montreal_da(path, outpath = None):
     files = glob.glob(path + '/*')
-    print(files)
     with open(files[0]) as f:
         lines = f.read().splitlines()
     
@@ -289,14 +289,37 @@ def build_montreal_da(path, outpath = None):
                     
                     prev_ii = ii
         
+        
+    default_centres =  dict(a = 6564.61, b = 4862.68, g = 4341.68, d = 4102.89,
+                     e = 3971.20, z = 3890.12, n = 3835.5,
+                 t = 3799.5)
+    default_windows = dict(a = 100, b = 100, g = 85, d = 70, e = 30,
+                      z = 25, n = 15, t = 10)
+    default_edges = dict(a = 25, b = 25, g = 20, d = 20, 
+                    e = 5, z = 5, n = 5, t = 4)
+    
+    default_names = ['n', 'z', 'e', 'd', 'g', 'b', 'a']
                 
-    table['teff'] = np.array(dat).T[1]
-    table['logg'] = np.array(dat).T[0]
-    table['wl'] = air2vac(np.array(dat).T[3])
-    table['fl'] = (2.99792458e21*1000*np.array(dat).T[2]) / (table['wl'])**2 # convert from erg cm^2 s^1 Hz^-1 ---> erg cm^2 s^1 A^-1
+    table['teff'] = np.array(dat, dtype=object).T[1]
+    table['logg'] = np.array(dat, dtype=object).T[0]
+    wavls = air2vac(np.array(dat, dtype=object).T[3])
+    fls = (2.99792458e24*np.array(dat, dtype=object).T[2]) / (wavls)**2 # convert from erg cm^2 s^1 Hz^-1 ---> erg cm^2 s^1 A^-1
+    #ivar = 1e10*np.zeros((len(fls), len(fls[0])))
+        
+    #test = np.array([cont_norm_lines(wavls[i], fls[i], ivar[i], default_names, default_centres, default_windows, default_edges) for i in range(len(wavls))])
     
-    table['fl'] = [continuum_normalize(table['wl'][i], table['fl'][i], avg_size = 300)[1] for i in tqdm(range(len(table)))]
+    #wavl = np.linspace(3600, 9000, 3747)
+    #wavl_arr = [wavl for i in range(len(table))]
     
+    #fl_arr = []
+    #for i in tqdm(range(len(table))):
+    #    fl_arr.append(np.interp(wavl, test[i][0], test[i][1]))
+    
+    table['wl'] = wavls
+    table['fl'] = fls
+    
+    #table['fl'] = [cont_norm_lines(table['wl'][i], table['fl'][i], avg_size = 400)[1] for i in tqdm(range(len(table)))]
+    #table['fl'] = [_cont_norm(table['fl'], np.zeros((len(table['fl']), len(table['fl'][0]))), np.ones((len(table['fl']), len(table['fl'][0]))) )[1] for i in tqdm(range(len(table)))]
     
     teffs = sorted(list(set(table['teff'])))
     loggs = sorted(list(set(table['logg'])))

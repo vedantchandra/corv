@@ -66,7 +66,7 @@ def normalized_residual(wl, fl, ivar, corvmodel, params, fit_window = None):
 def xcorr_rv(wl, fl, ivar, corvmodel, params,
              min_rv = -1500, max_rv = 1500, 
              npoints = 500,
-             quad_window = 150, plot = False):
+             quad_window = 300, plot = False):
     """
     Find best RV via x-correlation on grid and quadratic fitting the peak.
 
@@ -370,10 +370,26 @@ def xcorr_rv_nt(mastar_fl, wl, fl, ivar, plot = False, min_rv = -1500, max_rv = 
         
     return rv, e_rv, redchi, rvgrid, cc
 
-def fit_without_interpolator(table, wl, fl, ivar):
-    chi2 = []
+def fit_without_interpolator(wl, fl, ivar):
+    table = models.fetch_montreal_da_table()
+    
+    
+    
+    default_centres =  dict(a = 6564.61, b = 4862.68, g = 4341.68, d = 4102.89,
+                     e = 3971.20, z = 3890.12, n = 3835.5,
+                 t = 3799.5)
+    default_windows = dict(a = 100, b = 100, g = 85, d = 70, e = 30,
+                      z = 25, n = 15, t = 10)
+    default_edges = dict(a = 25, b = 25, g = 20, d = 20, 
+                    e = 5, z = 5, n = 5, t = 4)
+    default_names = ['n', 'z', 'e', 'd', 'g', 'b', 'a']
+    
+    
+    for i in range(len(table)):
+        table['wl'][i], table['fl'][i], _ = utils.cont_norm_lines(table['wl'][i], table['fl'][i], np.zeros(len(table['fl'][i])), default_names, default_centres, default_windows, default_edges)
     table_fl = [np.interp(wl, table['wl'][i], table['fl'][i]) for i in range(len(table))]
     
+    chi2 = []
     for i in range(len(table_fl)):   
         chi2.append(sum( (fl - table_fl[i])**2 * ivar ))
         
@@ -383,5 +399,6 @@ def fit_without_interpolator(table, wl, fl, ivar):
     plt.figure(figsize = (10,5))
     plt.plot(wl, utils.continuum_normalize(wl, fl)[1])
     plt.plot(wl, table_fl[np.nanargmin(chi2)])
+    plt.ylim((0, 3))
     
     return rv, e_rv, redchi, np.nanargmin(chi2)

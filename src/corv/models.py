@@ -34,9 +34,11 @@ basepath = os.path.dirname(os.path.abspath(__file__))
 modpath = basepath[:-8] + 'models/'
 #wd_interp = pickle.load(open('/home/arseneau/research/white-dwarfs/models/koester_interp_da.pkl', 'rb'))
 
-print('building montreal models')
-print(basepath + '/models/montreal_da')
+print('building montreal da model')
 base_wavl_da, montreal_da_interp, montreal_da_table = utils.build_montreal_da(basepath + '/models/montreal_da')
+
+def fetch_montreal_da_table():
+    return montreal_da_table
 
 
 from . import utils
