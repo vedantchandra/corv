@@ -43,20 +43,20 @@ def normalized_residual(wl, fl, ivar, corvmodel, params, fit_window = None):
                                             corvmodel.windows,
                                             corvmodel.edges)
         
-    if fit_window is not None:
-        for ii in range(len(nivar)):
-            in_center = []
-                        
-            for key in corvmodel.centres:
-                center = corvmodel.centres[key]
-                
-                if (center - fit_window < wl[ii] < center + fit_window):
-                    in_center.append(True)
-                else:
-                    in_center.append(False)
-                    
-            if not True in in_center:
-                nivar[ii] = 0            
+    #if fit_window is not None:
+    #    for ii in range(len(nivar)):
+    #        in_center = []
+    #                    
+    #        for key in corvmodel.centres:
+    #            center = corvmodel.centres[key]
+    #            
+    #            if (center - fit_window < wl[ii] < center + fit_window):
+    #                in_center.append(True)
+    #            else:
+    #                in_center.append(False)
+    #                
+    #        if not True in in_center:
+    #            nivar[ii] = 0            
     
     _,nmodel = models.get_normalized_model(wl, corvmodel, params)
     resid = (nfl - nmodel) * np.sqrt(nivar)
