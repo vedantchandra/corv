@@ -28,9 +28,18 @@ import pickle
 import os
 import scipy 
 
+from . import utils
+
 basepath = os.path.dirname(os.path.abspath(__file__))
 modpath = basepath[:-8] + 'models/'
-#print(modpath)
+#wd_interp = pickle.load(open('/home/arseneau/research/white-dwarfs/models/koester_interp_da.pkl', 'rb'))
+
+print('building montreal da model')
+base_wavl_da, montreal_da_interp, montreal_da_table = utils.build_montreal_da(basepath + '/models/montreal_da')
+
+def fetch_montreal_da_table():
+    return montreal_da_table
+
 
 from . import utils
 
@@ -200,6 +209,98 @@ def make_koester_model(resolution = 1, centres = default_centres,
     model.edges = edges
     
     return model
+
+# Montreal DA Model
+
+#try:
+#montreal_da_interp = pickle.load(open(basepath + '/models/montreal_da.pkl', 'rb'))
+#base_wavl_da = np.load(basepath + '/models/montreal_da_wavl.npy')
+#except:
+#    print('could not find pickled Montreal DA WD models')
+
+def get_montreal_da(x, teff, logg, RV, res):
+    """
+    Interpolates Koester (2010) DA models
+
+    Parameters
+    ----------
+    x : array_like
+        wavelength in Angstrom.
+    teff : float
+        effective temperature in K.
+    logg : float
+        log surface gravity in cgs.
+
+    Returns
+    -------
+    flam : array_like
+        synthetic flux interpolated at the requested parameters.
+
+    """
+    df = np.sqrt((1 - RV/c_kms)/(1 + RV/c_kms))
+    x_shifted = x * df
+
+    flam = np.zeros_like(x_shifted) * np.nan
+
+    in_bounds = (x_shifted > 3600) & (x_shifted < 9000)
+    flam[in_bounds] = np.interp(x_shifted[in_bounds], base_wavl_da, montreal_da_interp((teff, logg)))
+
+    flam = flam / np.nanmedian(flam) # bring to order unity
+    
+    dx = np.median(np.diff(x))
+    window = res / dx
+    
+    flam = scipy.ndimage.gaussian_filter1d(flam, window)
+    
+    return flam
+
+
+def make_montreal_da_model(resolution = 1, centres = default_centres, 
+                       windows = default_windows, 
+                       edges = default_edges,
+                       names = default_names):
+    """
+    
+
+    Parameters
+    ----------
+    resolution : float, optional
+        gaussian sigma in AA by which the models are convolved. 
+        The default is 1.
+    centres : dict, optional
+        rest-frame line centres. The default is default_centres.
+    windows : dict, optional
+        region around each line in pixels. The default is default_windows.
+    edges : TYPE, optional
+        edge regions used to fit continuum. The default is default_edges.
+    names : TYPE, optional
+        line keys in ascending order of lambda. The default is default_names.
+
+    Returns
+    -------
+    model : TYPE
+        DESCRIPTION.
+
+    """
+    
+    model = Model(get_montreal_da,
+                  independent_vars = ['x'],
+                  param_names = ['teff', 'logg', 'RV', 'res'])
+    
+    model.set_param_hint('teff', min = 4001, max = 35000, value = 12000)
+    model.set_param_hint('logg', min = 5, max = 9, value = 8)
+    model.set_param_hint('RV', min = -2500, max = 2500, value = 0)
+    model.set_param_hint('res', value = resolution, min = 0, vary = False)
+    
+    
+    model.centres = centres
+    model.windows = windows
+    model.names = names
+    model.edges = edges
+    
+    return model
+
+
 
 def get_normalized_model(wl, corvmodel, params):
     """
