@@ -303,7 +303,7 @@ def build_montreal_da(path, outpath = None):
     table['teff'] = np.array(dat, dtype=object).T[1]
     table['logg'] = np.array(dat, dtype=object).T[0]
     wavls = air2vac(np.array(dat, dtype=object).T[3])
-    fls = (2.99792458e24*np.array(dat, dtype=object).T[2]) / (wavls)**2 # convert from erg cm^2 s^1 Hz^-1 ---> erg cm^2 s^1 A^-1
+    fls = (2.99792458e18*np.array(dat, dtype=object).T[2]) / (wavls)**2 # convert from erg cm^2 s^1 Hz^-1 ---> erg cm^2 s^1 A^-1
     #ivar = 1e10*np.zeros((len(fls), len(fls[0])))
         
     #test = np.array([cont_norm_lines(wavls[i], fls[i], ivar[i], default_names, default_centres, default_windows, default_edges) for i in range(len(wavls))])
@@ -343,7 +343,9 @@ def build_montreal_da(path, outpath = None):
         pickle.dump(model_spec, interp_file)
         np.save(outpath + '/montreal_da_wavl', base_wavl)
     
-    return base_wavl, model_spec, table
+    print(sum(wavls[0] - wavls[1]))
+    
+    return wavls[0], model_spec, table
 
 
 def build_montreal_db(path, outpath = None):
