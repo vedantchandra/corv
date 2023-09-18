@@ -17,6 +17,8 @@ import pickle
 from scipy.interpolate import RegularGridInterpolator
 from astropy.table import Table
 import glob
+import os
+
 from . import models
 from tqdm import tqdm
 
@@ -224,7 +226,9 @@ def get_medsn(wl, fl, ivar):
     
     return medsn, 1/sigma_est
 
-def build_montreal_da(path, outpath = None):
+basepath = os.path.dirname(os.path.abspath(__file__))
+
+def build_montreal_da(path = basepath + '/models/montreal_da/', outpath = None, flux_unit = 'fnu'):
     files = glob.glob(path + '/*')
     with open(files[0]) as f:
         lines = f.read().splitlines()
@@ -303,7 +307,7 @@ def build_montreal_da(path, outpath = None):
     table['teff'] = np.array(dat, dtype=object).T[1]
     table['logg'] = np.array(dat, dtype=object).T[0]
     wavls = air2vac(np.array(dat, dtype=object).T[3])
-    fls = (2.99792458e18*np.array(dat, dtype=object).T[2]) / (wavls)**2 # convert from erg cm^2 s^1 Hz^-1 ---> erg cm^2 s^1 A^-1
+    fls = np.array(dat, dtype=object).T[2] # convert from erg cm^2 s^1 Hz^-1 ---> erg cm^2 s^1 A^-1
     #ivar = 1e10*np.zeros((len(fls), len(fls[0])))
         
     #test = np.array([cont_norm_lines(wavls[i], fls[i], ivar[i], default_names, default_centres, default_windows, default_edges) for i in range(len(wavls))])
@@ -317,6 +321,9 @@ def build_montreal_da(path, outpath = None):
     
     table['wl'] = wavls
     table['fl'] = fls
+    if flux_unit = 'flam':
+        table['fl'] = (2.99792458e18*table['fl'] / table['wl']**2)
+
     
     #table['fl'] = [cont_norm_lines(table['wl'][i], table['fl'][i], avg_size = 400)[1] for i in tqdm(range(len(table)))]
     #table['fl'] = [_cont_norm(table['fl'], np.zeros((len(table['fl']), len(table['fl'][0]))), np.ones((len(table['fl']), len(table['fl'][0]))) )[1] for i in tqdm(range(len(table)))]
@@ -331,7 +338,7 @@ def build_montreal_da(path, outpath = None):
             try:
                 values[i,j] = table[np.all([table['teff'] == teffs[i], table['logg'] == loggs[j]], axis = 0)]['fl'][0]
             except:
-                values[i,j,k] = np.zeros(3747)
+                values[i,j] = np.zeros(3747)
                 
     model_spec = RegularGridInterpolator((teffs, loggs), values)
     
@@ -342,9 +349,7 @@ def build_montreal_da(path, outpath = None):
         # dump information to that file
         pickle.dump(model_spec, interp_file)
         np.save(outpath + '/montreal_da_wavl', base_wavl)
-    
-    print(sum(wavls[0] - wavls[1]))
-    
+        
     return wavls[0], model_spec, table
 
 
