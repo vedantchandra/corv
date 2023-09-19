@@ -321,7 +321,7 @@ def build_montreal_da(path = basepath + '/models/montreal_da/', outpath = None, 
     
     table['wl'] = wavls
     table['fl'] = fls
-    if flux_unit = 'flam':
+    if flux_unit == 'flam':
         table['fl'] = (2.99792458e18*table['fl'] / table['wl']**2)
 
     
