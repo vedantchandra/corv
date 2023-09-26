@@ -228,7 +228,7 @@ def get_medsn(wl, fl, ivar):
 
 basepath = os.path.dirname(os.path.abspath(__file__))
 
-def build_montreal_da(path = basepath + '/models/montreal_da/', outpath = None, flux_unit = 'fnu'):
+def build_montreal_da(path, outpath = None, flux_unit = 'fnu'):
     files = glob.glob(path + '/*')
     with open(files[0]) as f:
         lines = f.read().splitlines()
@@ -339,8 +339,16 @@ def build_montreal_da(path = basepath + '/models/montreal_da/', outpath = None, 
                 values[i,j] = table[np.all([table['teff'] == teffs[i], table['logg'] == loggs[j]], axis = 0)]['fl'][0]
             except:
                 values[i,j] = np.zeros(3747)
-                
-    model_spec = RegularGridInterpolator((teffs, loggs), values)
+    
+    #NICOLE BUG FIX
+    high_logg_grid=values[:,4:]
+    high_loggs=loggs[4:]
+
+    low_logg_grid=values[16:33,:]
+    low_loggs_teffs=teffs[16:33]
+
+    model_spec = RegularGridInterpolator((teffs, high_loggs), high_logg_grid)
+    model_spec_low_logg = RegularGridInterpolator((low_loggs_teffs, loggs), low_logg_grid)
     
     if outpath is not None:
         # open a file, where you ant to store the data
@@ -350,7 +358,7 @@ def build_montreal_da(path = basepath + '/models/montreal_da/', outpath = None, 
         pickle.dump(model_spec, interp_file)
         np.save(outpath + '/montreal_da_wavl', base_wavl)
         
-    return wavls[0], model_spec, table
+    return wavls[0], model_spec, model_spec_low_logg, table
 
 
 def build_montreal_db(path, outpath = None):
