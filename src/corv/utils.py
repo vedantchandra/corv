@@ -334,14 +334,14 @@ def build_warwick_da(path = '/models/warwick_da', outpath = None, flux_unit = 'f
     teffs = sorted(list(set(table['teff'])))
     loggs = sorted(list(set(table['logg'])))
     
-    values = np.zeros((len(teffs), len(loggs), 3747))
+    values = np.zeros((len(teffs), len(loggs), len(wavls[0])))
     
     for i in range(len(teffs)):
         for j in range(len(loggs)):
             try:
                 values[i,j] = table[np.all([table['teff'] == teffs[i], table['logg'] == loggs[j]], axis = 0)]['fl'][0]
             except:
-                values[i,j] = np.zeros(3747)
+                values[i,j] = np.zeros(len(wavls[0]))
     
     #NICOLE BUG FIX
     high_logg_grid=values[:,4:]
