@@ -228,8 +228,11 @@ def get_medsn(wl, fl, ivar):
 
 basepath = os.path.dirname(os.path.abspath(__file__))
 
-def build_montreal_da(path, outpath = None, flux_unit = 'fnu'):
-    files = glob.glob(path + '/*')
+def build_warwick_da(path = '/models/warwick_da', outpath = None, flux_unit = 'fnu'):
+    dirpath = os.path.dirname(os.path.realpath(__file__))
+    files = glob.glob(dirpath + path + '/*')
+    
+
     with open(files[0]) as f:
         lines = f.read().splitlines()
     
@@ -352,16 +355,16 @@ def build_montreal_da(path, outpath = None, flux_unit = 'fnu'):
     
     if outpath is not None:
         # open a file, where you ant to store the data
-        interp_file = open(outpath + '/montreal_da.pkl', 'wb')
+        interp_file = open(outpath + '/warwick_da.pkl', 'wb')
         
         # dump information to that file
         pickle.dump(model_spec, interp_file)
-        np.save(outpath + '/montreal_da_wavl', base_wavl)
+        np.save(outpath + '/warwick_da_wavl', base_wavl)
         
     return wavls[0], model_spec, model_spec_low_logg, table
 
 
-def build_montreal_db(path, outpath = None):
+def build_warwick_db(path, outpath = None):
     table = Table()
     dat = []
     files = glob.glob(path + '/*')
@@ -445,11 +448,11 @@ def build_montreal_db(path, outpath = None):
     
     if outpath is not None:
         # open a file, where you ant to store the data
-        interp_file = open(outpath + '/montreal_db.pkl', 'wb')
+        interp_file = open(outpath + '/warwick_db.pkl', 'wb')
         
         # dump information to that file
         pickle.dump(model_spec, interp_file)
-        np.save(outpath + '/montreal_db_wavl', base_wavl)
+        np.save(outpath + '/warwick_db_wavl', base_wavl)
     
     return base_wavl, model_spec
 
