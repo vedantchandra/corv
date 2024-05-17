@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0", "numpy", "scipy",
+		"lmfit", "matplotlib", "astropy", "tqdm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "corv"
+version = "0.2"
+authors = [
+  { name="Vedant Chandra", email="vedant.chandra@cfa.harvard.edu" },
+  { name="Stefan Arseneau", email="arseneau@bu.edu"}
+]
+description = "compact object radial velocities"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/vedantchandra/corv"
+Issues = "https://github.com/vedantchandra/corv/issues"

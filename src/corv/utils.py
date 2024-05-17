@@ -231,7 +231,8 @@ basepath = os.path.dirname(os.path.abspath(__file__))
 def build_warwick_da(path = '/models/warwick_da', outpath = None, flux_unit = 'flam'):
     dirpath = os.path.dirname(os.path.realpath(__file__))
     files = glob.glob(dirpath + path + '/*')
-    
+
+    print(dirpath + path)   
 
     with open(files[0]) as f:
         lines = f.read().splitlines()
