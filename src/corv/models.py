@@ -30,10 +30,31 @@ import scipy
 
 from . import utils
 
+inpmod=input('The default path to the Koester models is ./models/koester_interp_da.pkl. If you would like to use this path please type y. If you would like to use a different path, please type n. If you do not wish to enter a path, please type s.')
+
+if inpmod=='y':
+    modpath='/models/koester_interp_da.pkl'
+elif inpmod=='n':
+    inpmod2=input('Please type your desired path to the Koester models.')
+    modpath=inpmod2
+else:
+    modpath='no path selected'
+print("Your path to the Koester models= ", modpath)
+
+inpmod3=input('The default path to the Warwick models is ./models/warwick_da. If you would like to use this path please type y. If you would like to use a different path, please type n. If you do not wish to enter a path, please type s.')
+
+if inpmod3=='y':
+    modpath_m='/models/warwick_da'
+elif inpmod3=='n':
+    inpmod4=input('Please type your desired path to the Warwick models.')
+    modpath_m=inpmod4
+else:
+    modpath_m='no path selected'
+print("Your path to the Warwick models= ", modpath_m)
+
 print('building warwick da model')
-modpath='/models/koester_interp_da.pkl'
 #NICOLE BUG FIX
-base_wavl_da, warwick_da_interp,warwick_da_interp_low_logg, warwick_da_table = utils.build_warwick_da()
+base_wavl_da, warwick_da_interp,warwick_da_interp_low_logg, warwick_da_table = utils.build_warwick_da(modpath_m)
 
 def fetch_montreal_da_table():
     return montreal_da_table
