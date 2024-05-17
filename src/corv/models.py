@@ -31,6 +31,7 @@ import scipy
 from . import utils
 
 print('building warwick da model')
+modpath='/models/koester_interp_da.pkl'
 #NICOLE BUG FIX
 base_wavl_da, warwick_da_interp,warwick_da_interp_low_logg, warwick_da_table = utils.build_warwick_da()
 
