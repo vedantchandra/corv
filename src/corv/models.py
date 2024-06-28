@@ -301,7 +301,7 @@ def make_warwick_da_model(resolution = 1, centres = default_centres,
                   independent_vars = ['x'],
                   param_names = ['teff', 'logg', 'RV', 'res'])
     
-    model.set_param_hint('teff', min = 4001, max = 35000, value = 12000)
+    model.set_param_hint('teff', min = 4001, max = 129000, value = 12000)
     model.set_param_hint('logg', min = 7, max = 9, value = 8)
     model.set_param_hint('RV', min = -2500, max = 2500, value = 0)
     model.set_param_hint('res', value = resolution, min = 0, vary = False)
