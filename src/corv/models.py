@@ -28,6 +28,7 @@ import pickle
 import os
 import scipy 
 
+from . import readspectra as rs
 from . import utils
 
 basepath = os.path.dirname(os.path.abspath(__file__))
@@ -126,13 +127,8 @@ if modpath!='no path selected':
     try:
         wd_interp = pickle.load(open(modpath, 'rb'))
     except:
-        print('We could not find the pickled WD models')
-        inpmod3=input('Please enter a new path to the Koester models.')
-        modpathnew=inpmod3
-        try:
-            wd_interp = pickle.load(open(modpathnew, 'rb'))
-        except:
-            print('We could not find the pickled WD models. If you need to use these models, please re-import corv with the proper path.')
+        print('Could not find the pickled WD models. If you need to use these models, please re-import corv with the proper path.')
+
 
 
 def get_koester(x, teff, logg, RV, res):
@@ -313,6 +309,92 @@ def make_warwick_da_model(resolution = 1, centres = default_centres,
     model.edges = edges
     
     return model
+
+## UPDATED INTERPOLATION & MODEL SUPPORT
+
+def get_warwick(x, teff, logg, RV, res, name):
+    """
+    Interpolates Montreal models
+
+    Parameters
+    ----------
+    x : array_like
+        wavelength in Angstrom.
+    teff : float
+        effective temperature in K.
+    logg : float
+        log surface gravity in cgs.
+
+    Returns
+    -------
+    flam : array_like
+        synthetic flux interpolated at the requested parameters.
+
+    """
+    df = np.sqrt((1 - RV/c_kms)/(1 + RV/c_kms))
+    x_shifted = x * df
+
+    flam = np.zeros_like(x_shifted) * np.nan
+
+    model = rs.Spectrum(name)
+    in_bounds = (x_shifted > 3600) & (x_shifted < 9000)
+    flam[in_bounds] = np.interp(x_shifted[in_bounds], model.wavl, model.model_spec((teff, logg)))
+
+    norm = np.nanmedian(flam)
+    flam = flam / norm # bring to order unity
+        
+    dx = np.median(np.diff(x))
+    window = res / dx
+    
+    flam = scipy.ndimage.gaussian_filter1d(flam, window)
+    return flam
+
+def make_warwick_model(name = '1d_da_nlte', resolution = 1, 
+                       centres = default_centres, 
+                       windows = default_windows, 
+                       edges = default_edges,
+                       names = default_names):
+    """
+    For logg>7 dex
+
+    Parameters
+    ----------
+    resolution : float, optional
+        gaussian sigma in AA by which the models are convolved. 
+        The default is 1.
+    centres : dict, optional
+        rest-frame line centres. The default is default_centres.
+    windows : dict, optional
+        region around each line in pixels. The default is default_windows.
+    edges : TYPE, optional
+        edge regions used to fit continuum. The default is default_edges.
+    names : TYPE, optional
+        line keys in ascending order of lambda. The default is default_names.
+
+    Returns
+    -------
+    model : TYPE
+        DESCRIPTION.
+
+    """
+    
+    model = Model(get_warwick,
+                  independent_vars = ['x'],
+                  param_names = ['teff', 'logg', 'RV', 'res'],
+                  **dict(name = name))
+    
+    model.set_param_hint('teff', min = 4001, max = 129000, value = 12000)
+    model.set_param_hint('logg', min = 7, max = 9, value = 8)
+    model.set_param_hint('RV', min = -2500, max = 2500, value = 0)
+    model.set_param_hint('res', value = resolution, min = 0, vary = False)
+    
+    model.centres = centres
+    model.windows = windows
+    model.names = names
+    model.edges = edges
+    
+    return model
+
 
 #NICOLE BUG FIX
 def get_warwick_da_low_logg(x, teff, logg, RV, res):
