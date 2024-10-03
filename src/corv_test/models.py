@@ -316,9 +316,8 @@ class WarwickModel:
                        centres = default_centres, windows = default_windows, 
                        edges = default_edges, names = default_names):
 
-        self.interpolator_name = model_name
-        self.model = Model(self.get_warwick,
-                  independent_vars = ['x'],
+        self.interpolator = rs.Spectrum(model_name)
+        self.model = Model(self.get_warwick, independent_vars = ['x'],
                   param_names = ['teff', 'logg', 'RV', 'res'])
     
         self.model.set_param_hint('teff', min = 4001, max = 129000, value = 12000)
@@ -355,9 +354,8 @@ class WarwickModel:
 
         flam = np.zeros_like(x_shifted) * np.nan
 
-        model = rs.Spectrum(self.interpolator_name)
         in_bounds = (x_shifted > 3600) & (x_shifted < 9000)
-        flam[in_bounds] = np.interp(x_shifted[in_bounds], model.wavl, model.model_spec((teff, logg)))
+        flam[in_bounds] = np.interp(x_shifted[in_bounds], self.interpolator.wavl, self.interpolator.model_spec((teff, logg)))
 
         norm = np.nanmedian(flam)
         flam = flam / norm # bring to order unity

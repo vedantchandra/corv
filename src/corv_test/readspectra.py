@@ -7,14 +7,16 @@ from scipy.interpolate import RegularGridInterpolator
 
 class Spectrum:
     def __init__(self, model, units = 'flam'):
-        supported_models = {'3d_da_lte_old': ('models/3d_da_lte/*', 2),
-                            '1d_da_nlte': ('models/1d_da_nlte/*', 2)}
+        # (path_to_files, n_free_parameters, wavlength_frame)
+        supported_models = {'3d_da_lte_old': ('models/3d_da_lte/*', 2, 'air'),
+                            '1d_da_nlte': ('models/1d_da_nlte/*', 2, 'air')}
         assert model in list(supported_models.keys()), 'requested model not supported'
         # load in the model files
         dirname = os.path.dirname(os.path.abspath(__file__)) 
         self.path = os.path.join(dirname, supported_models[model][0])
         self.files = glob.glob(self.path)
         self.units = units
+        self.modelname = model
        
         # fetch the wavelength and flux grids
         self.nparams = supported_models[model][1]
@@ -39,8 +41,16 @@ class Spectrum:
         if self.units == 'flam':
             for i in range(len(self.fluxes)):
                 self.fluxes[i] = 2.99792458e18 * self.fluxes[i] / wavls[i]**2 
+
+        if supported_models[model][2] == 'air':
+            self.air2vac()
       
         self.build_interpolator()
+
+    def air2vac(self):
+        _tl=1.e4/self.wavl
+        self.wavl = (self.wavl*(1.+6.4328e-5+2.94981e-2/\
+                          (146.-_tl**2)+2.5540e-4/(41.-_tl**2)))
 
 
     def interpolate(self, wavls, fluxes, length_to_interpolate):
