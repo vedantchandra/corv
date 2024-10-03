@@ -4,8 +4,14 @@ this package contains routines to model the spectra of compact objects (e.g. whi
 
 To install: ``pip install corv``
 
-NOTE: `corv` returns statistical errors only. There's an additional systematic error in the measurements from the choice of templates. `corv` RVs are generally good to ~12-18 km/s.
-    Also, the montreal DA models don't work on this branch right now. Working on it!
+The following model white dwarf spectra can be used to fit RVs:
+* `1d_da_nlte` : [1D pure-hydrogen (DA) non-local thermodynamic equilibrium (NLTE) spectra](https://warwick.ac.uk/fac/sci/physics/research/astro/people/tremblay/modelgrids/readme.txt)
+* `1d_elm_da_lte` : [1D pure-hydrogen (DA) extremely low-mass (ELM) LTE spectra](https://warwick.ac.uk/fac/sci/physics/research/astro/people/tremblay/modelgrids/readme_elm.txt)
+* `3d_da_lte_noh2` [⟨3D⟩ pure-hydrogen (DA) LTE spectra without molecular H2 lines](https://warwick.ac.uk/fac/sci/physics/research/astro/people/tremblay/modelgrids/readme_3d.txt)
+* `3d_da_lte_h2` [⟨3D⟩ pure-hydrogen (DA) LTE spectra with molecular H2 lines](https://warwick.ac.uk/fac/sci/physics/research/astro/people/tremblay/modelgrids/readme_3d.txt)
+* `3d_da_lte_old` Archived 3D DA LTE spectra (these were previously the `corv` defaults but are no longer recommended)
+
+Note that `corv` does not apply 3D corrections to 1D parameters by default. These should be done using the routines available in the model grid documentation.
 
 ## Contributors
 
