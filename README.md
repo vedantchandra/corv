@@ -17,6 +17,6 @@ Note that `corv` does not apply 3D corrections to 1D parameters by default. Thes
 
 [Vedant Chandra](https://vedantchandra.com/) (Harvard)
 
-[Stefan Arseneau](https://stefanarseneau.github.io) (Johns Hopkins)
+[Stefan Arseneau](https://stefanarseneau.github.io) (Boston University)
 
 [Keith P. Inight](https://warwick.ac.uk/fac/sci/physics/research/astro/people/keithinight/) (Warwick)
