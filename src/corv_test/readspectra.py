@@ -64,8 +64,11 @@ class Spectrum:
         for i in range(len(self.unique_logteff)):
             for j in range(len(self.unique_logg)):
                 target = [self.unique_logteff[i], self.unique_logg[j]]
-                indx = np.where((self.values == target).all(axis=1))[0][0]
-                self.flux_grid[i,j] = self.fluxes[indx]
+                try:
+                    indx = np.where((self.values == target).all(axis=1))[0][0]
+                    self.flux_grid[i,j] = self.fluxes[indx]
+                except IndexError:
+                    self.flux_grid[i,j] += -999
 
         self.model_spec = RegularGridInterpolator((10**self.unique_logteff, self.unique_logg), self.flux_grid) 
 

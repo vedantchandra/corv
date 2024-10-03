@@ -311,89 +311,62 @@ def make_warwick_da_model(resolution = 1, centres = default_centres,
     return model
 
 ## UPDATED INTERPOLATION & MODEL SUPPORT
+class WarwickModel:
+    def __init__(self, model_name = '1d_da_nlte', resolution = 1, 
+                       centres = default_centres, windows = default_windows, 
+                       edges = default_edges, names = default_names):
 
-def get_warwick(x, teff, logg, RV, res, name):
-    """
-    Interpolates Montreal models
-
-    Parameters
-    ----------
-    x : array_like
-        wavelength in Angstrom.
-    teff : float
-        effective temperature in K.
-    logg : float
-        log surface gravity in cgs.
-
-    Returns
-    -------
-    flam : array_like
-        synthetic flux interpolated at the requested parameters.
-
-    """
-    df = np.sqrt((1 - RV/c_kms)/(1 + RV/c_kms))
-    x_shifted = x * df
-
-    flam = np.zeros_like(x_shifted) * np.nan
-
-    model = rs.Spectrum(name)
-    in_bounds = (x_shifted > 3600) & (x_shifted < 9000)
-    flam[in_bounds] = np.interp(x_shifted[in_bounds], model.wavl, model.model_spec((teff, logg)))
-
-    norm = np.nanmedian(flam)
-    flam = flam / norm # bring to order unity
-        
-    dx = np.median(np.diff(x))
-    window = res / dx
-    
-    flam = scipy.ndimage.gaussian_filter1d(flam, window)
-    return flam
-
-def make_warwick_model(name = '1d_da_nlte', resolution = 1, 
-                       centres = default_centres, 
-                       windows = default_windows, 
-                       edges = default_edges,
-                       names = default_names):
-    """
-    For logg>7 dex
-
-    Parameters
-    ----------
-    resolution : float, optional
-        gaussian sigma in AA by which the models are convolved. 
-        The default is 1.
-    centres : dict, optional
-        rest-frame line centres. The default is default_centres.
-    windows : dict, optional
-        region around each line in pixels. The default is default_windows.
-    edges : TYPE, optional
-        edge regions used to fit continuum. The default is default_edges.
-    names : TYPE, optional
-        line keys in ascending order of lambda. The default is default_names.
-
-    Returns
-    -------
-    model : TYPE
-        DESCRIPTION.
-
-    """
-    
-    model = Model(get_warwick,
+        self.interpolator_name = model_name
+        self.model = Model(self.get_warwick,
                   independent_vars = ['x'],
-                  param_names = ['teff', 'logg', 'RV', 'res'],
-                  **dict(name = name))
+                  param_names = ['teff', 'logg', 'RV', 'res'])
     
-    model.set_param_hint('teff', min = 4001, max = 129000, value = 12000)
-    model.set_param_hint('logg', min = 7, max = 9, value = 8)
-    model.set_param_hint('RV', min = -2500, max = 2500, value = 0)
-    model.set_param_hint('res', value = resolution, min = 0, vary = False)
+        self.model.set_param_hint('teff', min = 4001, max = 129000, value = 12000)
+        self.model.set_param_hint('logg', min = 7, max = 9, value = 8)
+        self.model.set_param_hint('RV', min = -2500, max = 2500, value = 0)
+        self.model.set_param_hint('res', value = resolution, min = 0, vary = False)
     
-    model.centres = centres
-    model.windows = windows
-    model.names = names
-    model.edges = edges
-    
-    return model
+        self.model.centres = centres
+        self.model.windows = windows
+        self.model.names = names
+        self.model.edges = edges
+
+    def get_warwick(self, x, teff, logg, RV, res):
+        """
+        Interpolates Montreal models
+
+        Parameters
+        ----------
+        x : array_like
+            wavelength in Angstrom.
+        teff : float
+            effective temperature in K.
+        logg : float
+            log surface gravity in cgs.
+
+        Returns
+        -------
+        flam : array_like
+            synthetic flux interpolated at the requested parameters.
+
+        """
+        df = np.sqrt((1 - RV/c_kms)/(1 + RV/c_kms))
+        x_shifted = x * df
+
+        flam = np.zeros_like(x_shifted) * np.nan
+
+        model = rs.Spectrum(self.interpolator_name)
+        in_bounds = (x_shifted > 3600) & (x_shifted < 9000)
+        flam[in_bounds] = np.interp(x_shifted[in_bounds], model.wavl, model.model_spec((teff, logg)))
+
+        norm = np.nanmedian(flam)
+        flam = flam / norm # bring to order unity
+            
+        dx = np.median(np.diff(x))
+        window = res / dx
+        
+        flam = scipy.ndimage.gaussian_filter1d(flam, window)
+        return flam
 
 
 #NICOLE BUG FIX
