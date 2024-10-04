@@ -2,7 +2,7 @@
 
 this package contains routines to model the spectra of compact objects (e.g. white dwarfs and M-dwarfs), and estimate their radial velocities. 
 
-To install: ``pip install corv``
+To install, clone this repo and run: ``pip install .`` inside of it.
 
 The following model white dwarf spectra can be used to fit RVs:
 * `1d_da_nlte` : [1D pure-hydrogen (DA) non-local thermodynamic equilibrium (NLTE) spectra](https://warwick.ac.uk/fac/sci/physics/research/astro/people/tremblay/modelgrids/readme.txt)
