@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "corv"
-version = "0.2"
+version = "2.0"
 authors = [
   { name="Vedant Chandra", email="vedant.chandra@cfa.harvard.edu" },
   { name="Stefan Arseneau", email="arseneau@bu.edu"}
