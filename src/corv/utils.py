@@ -254,3 +254,15 @@ def continuum_normalize(wl, fl, ivar = None, avg_size = 150, ret_cont = False):
             return wl, fl_norm, ivar_norm
         else:
             return wl, fl_norm
+
+def da_nlte_1d_correction(teff, logg):
+    A = np.array([1.0947335e-03, -1.8716231e-01, 1.9350009e-02, 6.4821613e-01,
+                  -2.2863187e-01, 5.8699232e-01, -1.0729871e-01, 1.1009070e-01])
+    B = np.array([7.5209868E-04, -9.2086619E-01, 3.1253746E-01, -1.0348176E+01,
+                  6.5854716E-01, 4.2849862E-01, -8.8982873E-02, 1.0199718E+01,
+                  4.9277883E-02, -8.6543477E-01, 3.6232756E-03, -5.8729354E-02])
+    teff0 = (teff - 10000) / 1000
+    logg0 = (logg - 8) / 1
+    teff_shift =(A[0]+(A[1]+A[6]*teff0+A[7]*logg0)*np.exp(-(A[2]+A[4]*teff0+A[5]*logg0)**2*((teff0-A[3])**2))) * 1000
+    logg_shift = (B[0]+B[4]*np.exp(-B[5]*((teff0-B[6])**2)))+B[1]*np.exp(-B[2]*((teff0-(B[3]+B[7]*np.exp(-(B[8]+B[10]*teff0+B[11]*logg0)**2*((teff0-B[9])**2))))**2))
+    return teff_shift, logg_shift
