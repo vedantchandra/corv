@@ -226,7 +226,7 @@ def get_medsn(wl, fl, ivar):
     
     return medsn, 1/sigma_est
 
-def continuum_normalize(wl, fl, ivar = None, avg_size = 150, ret_cont = False):
+def continuum_normalize(wl, fl, ivar = None, avg_size = 300, ret_cont = False):
     
     fl_norm = np.zeros(np.size(fl))
     fl_cont = np.zeros(np.size(fl))

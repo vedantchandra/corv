@@ -23,7 +23,7 @@ To-do:
 """
 
 import numpy as np
-from lmfit.models import Model, ConstantModel, VoigtModel
+from lmfit.models import Model, ConstantModel, VoigtModel, SkewedVoigtModel
 import pickle
 import os
 import scipy 
@@ -58,7 +58,8 @@ def make_balmer_model(nvoigt=1,
                  centres = default_centres, 
                  windows = default_windows, 
                  edges = default_edges,
-                 names = default_names):
+                 names = default_names,
+                 skewness = False):
     """
     Models each Balmer line as a (sum of) Voigt profiles
 
@@ -83,10 +84,12 @@ def make_balmer_model(nvoigt=1,
     """
 
     model = ConstantModel()
-
     for line in names:
         for n in range(nvoigt):
-            model -= VoigtModel(prefix = line + str(n) + '_')
+            if skewness:
+                model -= SkewedVoigtModel(prefix = line + str(n) + '_')
+            else:
+                model -= VoigtModel(prefix = line + str(n) + '_')
    
     model.set_param_hint('c', value = 1)
   
