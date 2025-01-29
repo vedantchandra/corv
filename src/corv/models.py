@@ -98,7 +98,8 @@ def make_balmer_model(nvoigt=1,
             pref = name + str(n)
             model.set_param_hint(pref + '_sigma', value = 15, min = 0)
             model.set_param_hint(pref + '_amplitude', value = 15, min = 0)
-            model.set_param_hint(pref + '_skew', value = 0, min = -1e-4)
+            if skewness:
+                model.set_param_hint(pref + '_skew', value = 0, min = -1e-4)
             if n == 0:
                 restwl = str(centres[name])
                 model.set_param_hint(pref + '_center', 
