@@ -90,9 +90,7 @@ def make_balmer_model(nvoigt=1,
                 model -= SkewedVoigtModel(prefix = line + str(n) + '_')
             else:
                 model -= VoigtModel(prefix = line + str(n) + '_')
-   
     model.set_param_hint('c', value = 1)
-  
     model.set_param_hint('RV', value = 0, min = -2500, max = 2500)
   
     for name in names:
@@ -100,6 +98,7 @@ def make_balmer_model(nvoigt=1,
             pref = name + str(n)
             model.set_param_hint(pref + '_sigma', value = 15, min = 0)
             model.set_param_hint(pref + '_amplitude', value = 15, min = 0)
+            model.set_param_hint(pref + '_skew', value = 0, min = -1e-4)
             if n == 0:
                 restwl = str(centres[name])
                 model.set_param_hint(pref + '_center', 
@@ -115,7 +114,6 @@ def make_balmer_model(nvoigt=1,
     model.windows = windows
     model.names = names
     model.edges = edges
-
     return model
 
 # Koester DA Model
