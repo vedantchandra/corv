@@ -219,8 +219,11 @@ class WarwickDAModel:
         self.interpolator = Spectrum(model_name)
         self.model = Model(self.get_warwick, independent_vars = ['x'],
                   param_names = ['teff', 'logg', 'RV', 'res'])
-    
-        self.model.set_param_hint('teff', min = 4001, max = 129000, value = 12000)
+
+        if model_name == '3d_da_lte_h2':
+            self.model.set_param_hint('teff', min = 4001, max = 39900, value = 12000)
+        else:
+            self.model.set_param_hint('teff', min = 4001, max = 129000, value = 12000)
         self.model.set_param_hint('logg', min = 7, max = 9, value = 8)
         self.model.set_param_hint('RV', min = -2500, max = 2500, value = 0)
         self.model.set_param_hint('res', value = resolution, min = 0, vary = False)
