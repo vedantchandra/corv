@@ -34,6 +34,12 @@ import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 from . import utils
 
+try:
+    import koester
+    da_interp = koester.WDInterpolator()
+except:
+    print('Could not import Koester models. Contact arseneau@bu.edu if these are needed.')
+
 basepath = os.path.dirname(os.path.abspath(__file__))
 modpath = basepath[:-8] + 'models/'
 
@@ -118,18 +124,15 @@ def make_balmer_model(nvoigt=1,
     return model
 
 # Koester DA Model
-
-if modpath!='no path selected':
-    try:
-        wd_interp = pickle.load(open(modpath, 'rb'))
-    except:
-        print('Could not find the pickled WD models. If you need to use these models, please re-import corv with the proper path.')
-
-
+#if modpath!='no path selected':
+#    try:
+#        print(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'koester_interp_da.pkl'))
+#        wd_interp = pickle.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'koester_interp_da.pkl'), 'rb'))
+#    except:
+#        print('Could not find the pickled WD models. If you need to use these models, please re-import corv with the proper path.')
 
 def get_koester(x, teff, logg, RV, res):
-    """
-    Interpolates Koester (2010) DA models
+    """Interpolates Koester (2010) DA models
 
     Parameters
     ----------
@@ -152,7 +155,9 @@ def get_koester(x, teff, logg, RV, res):
     flam = np.zeros_like(x_shifted) * np.nan
 
     in_bounds = (x_shifted > 3600) & (x_shifted < 9000)
-    flam[in_bounds] = 10**wd_interp((logg, np.log10(teff), np.log10(x_shifted[in_bounds])))
+    #flam[in_bounds] = 10**wd_interp((logg, np.log10(teff), np.log10(x_shifted[in_bounds])))
+    #koester_interp = koester.WDInterpolator()
+    flam[in_bounds] = np.interp(x_shifted[in_bounds], da_interp.wavl_grid, da_interp.model_spec((teff, logg)))
 
     flam = flam / np.nanmedian(flam) # bring to order unity
     
@@ -168,10 +173,7 @@ def make_koester_model(resolution = 1, centres = default_centres,
                        windows = default_windows, 
                        edges = default_edges,
                        names = default_names):
-    """
-    
-
-    Parameters
+    """Parameters
     ----------
     resolution : float, optional
         gaussian sigma in AA by which the models are convolved. 
@@ -184,12 +186,10 @@ def make_koester_model(resolution = 1, centres = default_centres,
         edge regions used to fit continuum. The default is default_edges.
     names : TYPE, optional
         line keys in ascending order of lambda. The default is default_names.
-
     Returns
     -------
     model : TYPE
         DESCRIPTION.
-
     """
     
     model = Model(get_koester,
@@ -259,7 +259,8 @@ class WarwickDAModel:
 
         in_bounds = (x_shifted > 3600) & (x_shifted < 9000)
         flam[in_bounds] = np.interp(x_shifted[in_bounds], self.interpolator.wavl, self.interpolator.model_spec((teff, logg)))
-
+        #flam[in_bounds] = self.interpolator.model_spec((teff, logg, x_shifted[in_bounds]))
+        #raise "aaaaaaa"
         norm = np.nanmedian(flam)
         flam = flam / norm # bring to order unity
             
@@ -302,7 +303,7 @@ def get_normalized_model(wl, corvmodel, params):
     return nwl, nfl
 
 class Spectrum:
-    def __init__(self, model, units = 'flam'):
+    def __init__(self, model, units = 'flam', wavl_range = (3600, 9000)):
         # (path_to_files, n_free_parameters, wavlength_frame)
         supported_models = {'1d_da_nlte': ('models/1d_da_nlte/*', 2, 'air'),
                             '1d_elm_da_lte': ('models/1d_elm_da_lte/*', 2, 'air'),
@@ -316,6 +317,7 @@ class Spectrum:
         self.files = glob.glob(self.path)
         self.units = units
         self.modelname = model
+        self.wavl_range = wavl_range
        
         # fetch the wavelength and flux grids
         self.nparams = supported_models[model][1]
@@ -330,16 +332,18 @@ class Spectrum:
         wl_grid_length = list(set([len(wl) for wl in wavls]))
         # Handle multiple wavelength grids in the same model
         try:
-            self.fluxes = np.array(fluxes, dtype=float)
+            fluxes_np = np.array(fluxes, dtype=float)
             wavls = np.array(wavls, dtype=float)
         except ValueError:
-            wavls, self.fluxes = self.interpolate(wavls, fluxes, max(wl_grid_length))
-        self.wavl = wavls[0]
+            wavls, fluxes_np = self.interpolate(wavls, fluxes, max(wl_grid_length))
+        
+        mask = (self.wavl_range[0] < wavls[0]) & (wavls[0] < self.wavl_range[1])
+        self.wavl, self.fluxes = wavls[0][mask], fluxes_np[:,mask]
 
         # convert to flam if that option is specified
         if self.units == 'flam':
             for i in range(len(self.fluxes)):
-                self.fluxes[i] = 2.99792458e18 * self.fluxes[i] / wavls[i]**2 
+                self.fluxes[i] = 2.99792458e18 * self.fluxes[i] / self.wavl[i]**2 
 
         if supported_models[model][2] == 'air':
             self.air2vac()
