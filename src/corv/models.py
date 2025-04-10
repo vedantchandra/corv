@@ -260,12 +260,11 @@ class WarwickDAModel:
         in_bounds = (x_shifted > 3600) & (x_shifted < 9000)
         flam[in_bounds] = np.interp(x_shifted[in_bounds], self.interpolator.wavl, self.interpolator.model_spec((teff, logg)))
         #flam[in_bounds] = self.interpolator.model_spec((teff, logg, x_shifted[in_bounds]))
-        #raise "aaaaaaa"
         norm = np.nanmedian(flam)
         flam = flam / norm # bring to order unity
             
         dx = np.median(np.diff(x))
-        window = res / dx
+        window = res * dx
         
         flam = scipy.ndimage.gaussian_filter1d(flam, window)
         return flam
@@ -342,8 +341,6 @@ class Spectrum:
 
         # convert to flam if that option is specified
         if self.units == 'flam':
-            #for i in range(len(self.fluxes)):
-            #    self.fluxes[i] = 2.99792458e18 * self.fluxes[i] / self.wavl[i]**2 
             self.fnu_to_flam()
 
         if supported_models[model][2] == 'air':
