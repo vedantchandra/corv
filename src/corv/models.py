@@ -342,13 +342,17 @@ class Spectrum:
 
         # convert to flam if that option is specified
         if self.units == 'flam':
-            for i in range(len(self.fluxes)):
-                self.fluxes[i] = 2.99792458e18 * self.fluxes[i] / self.wavl[i]**2 
+            #for i in range(len(self.fluxes)):
+            #    self.fluxes[i] = 2.99792458e18 * self.fluxes[i] / self.wavl[i]**2 
+            self.fnu_to_flam()
 
         if supported_models[model][2] == 'air':
             self.air2vac()
       
         self.build_interpolator()
+
+    def fnu_to_flam(self):
+        self.fluxes = 2.99792458e18 * self.fluxes / self.wavl**2
 
     def air2vac(self):
         _tl=1.e4/self.wavl
