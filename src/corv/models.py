@@ -224,7 +224,7 @@ class WarwickDAModel:
             self.model.set_param_hint('teff', min = 4001, max = 39900, value = 12000)
         else:
             self.model.set_param_hint('teff', min = 4001, max = 129000, value = 12000)
-        self.model.set_param_hint('logg', min = 7, max = 9, value = 8)
+        self.model.set_param_hint('logg', min = 7, max = 9.49, value = 8)
         self.model.set_param_hint('RV', min = -2500, max = 2500, value = 0)
         self.model.set_param_hint('res', value = resolution, min = 0, vary = False)
     
