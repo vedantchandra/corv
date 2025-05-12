@@ -209,6 +209,40 @@ def make_koester_model(resolution = 1, centres = default_centres,
     
     return model
 
+class TwoParamModel:
+    def __init__(self, interpolator, wavelength, teff_bounds = (3000, 80000), logg_bounds = (7.0, 9.75), 
+                 centres = default_centres, windows = default_windows, edges = default_edges,
+                 names = default_names, resolution = 1):
+        self.interpolator = interpolator
+        self.wavelength = wavelength
+        self.model = Model(self.get_twoparam, independent_vars = ['x'],
+                  param_names = ['teff', 'logg', 'RV', 'res'])
+        self.model.centres = centres
+        self.model.windows = windows
+        self.model.edges = edges
+        self.model.names = names
+
+        self.model.set_param_hint('teff', min = teff_bounds[0], max = teff_bounds[1], value = 12000)
+        self.model.set_param_hint('logg', min = logg_bounds[0], max = logg_bounds[1], value = 8)
+        self.model.set_param_hint('RV', value = 0, min = -2500, max = 2500)
+        self.model.set_param_hint('c', value = 1)
+        self.model.set_param_hint('res', value = resolution, min = 0, vary = False)
+
+    def get_twoparam(self, x, teff, logg, RV, res):
+        df = np.sqrt((1 - RV/c_kms)/(1 + RV/c_kms))
+        x_shifted = x * df
+        flam = np.zeros_like(x_shifted) * np.nan
+
+        in_bounds = (x_shifted > 3600) & (x_shifted < 9000)
+        flam[in_bounds] = np.interp(x_shifted[in_bounds], self.wavelength, self.interpolator((teff, logg)))
+        #flam[in_bounds] = self.interpolator.model_spec((teff, logg, x_shifted[in_bounds]))
+        flam = flam / np.nanmedian(flam) # bring to order unity
+        dx = np.median(np.diff(x))
+        window = res * dx
+
+        flam = scipy.ndimage.gaussian_filter1d(flam, window)
+        return flam
+
 # Montreal DA Model
 ## UPDATED INTERPOLATION & MODEL SUPPORT
 class WarwickDAModel:
