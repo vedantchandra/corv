@@ -2,3 +2,4 @@ numpy
 scipy
 lmfit
 matplotlib
+h5py

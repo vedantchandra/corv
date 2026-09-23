@@ -1,1 +1,1 @@
-recursive-include src/corv/models/ *
+include src/corv/models/corv_models.h5

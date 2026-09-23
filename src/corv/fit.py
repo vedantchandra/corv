@@ -67,7 +67,7 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
              min_rv = -1500, max_rv = 1500, 
              npoints = 500,
              quad_window = 300, 
-             plot = False, verbose=False):
+             plot = False, verbose=False, path = None):
     """
     Find best RV via x-correlation on grid and quadratic fitting the peak.
 
@@ -171,7 +171,10 @@ def xcorr_rv(wl, fl, ivar, corvmodel, params,
             plt.axvline(x = rv_best - e_rv, ls = ':')
             plt.axhline(y = t_cc, label = 'Minimum $\chi^2$')
             plt.legend()
-            plt.show()        
+            if path is not None:
+                plt.savefig(path)
+            else:
+                plt.show()        
     
         return rv, e_rv, redchi, rvgrid, cc
     except Exception as e:

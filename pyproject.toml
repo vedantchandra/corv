@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=61.0", "numpy", "scipy",
-		"lmfit", "matplotlib", "astropy", "tqdm"]
+		"lmfit", "matplotlib", "astropy", "tqdm", "h5py"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -22,3 +22,7 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/vedantchandra/corv"
 Issues = "https://github.com/vedantchandra/corv/issues"
+
+[tool.setuptools.exclude-package-data]
+# raw model files are only inputs to scripts/build_model_grids.py
+corv = ["models/*/*"]
