@@ -11,6 +11,8 @@ The following model white dwarf spectra can be used to fit RVs:
 * `3d_da_lte_h2` [⟨3D⟩ pure-hydrogen (DA) LTE spectra with molecular H2 lines](https://warwick.ac.uk/fac/sci/physics/research/astro/people/tremblay/modelgrids/readme_3d.txt)
 * `3d_da_lte_old` Archived 3D DA LTE spectra (these were previously the `corv` defaults but are no longer recommended)
 
+The model grids are packaged in `src/corv/models/corv_models.h5`. To rebuild it from the raw model files (e.g. after adding or updating a grid), run `python scripts/build_model_grids.py`.
+
 Note that `corv` does not apply 3D corrections to 1D parameters by default. These should be done using the routines available in the model grid documentation.
 
 *Update (01/29/2025):* I've added an optional term to enable fitting Voigt profiles with skewness as a free parameter! The accuracy of this is not yet tested, but if it works it may enable more accurate treatment of line asymmetries due to higher order Stark effects. --Stefan
