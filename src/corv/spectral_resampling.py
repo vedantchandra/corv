@@ -5,7 +5,6 @@ from __future__ import print_function, division, absolute_import
 
 import numpy as np
 
-
 def make_bins(wavs):
     """ Given a series of wavelength points, find the edges and widths
     of corresponding wavelength bins. """

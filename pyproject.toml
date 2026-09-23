@@ -1,6 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "numpy", "scipy",
-		"lmfit", "matplotlib", "astropy", "tqdm", "h5py"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -13,11 +12,16 @@ authors = [
 description = "compact object radial velocities"
 readme = "README.md"
 requires-python = ">=3.8"
+dependencies = ["numpy", "scipy", "lmfit", "matplotlib", "astropy", "tqdm", "h5py"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+
+[project.optional-dependencies]
+test = ["pytest"]
+validation = ["astroquery"]
 
 [project.urls]
 Homepage = "https://github.com/vedantchandra/corv"
@@ -26,3 +30,8 @@ Issues = "https://github.com/vedantchandra/corv/issues"
 [tool.setuptools.exclude-package-data]
 # raw model files are only inputs to scripts/build_model_grids.py
 corv = ["models/*/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["validation: slow comparison against external data; needs network (run with --run-validation)"]
+filterwarnings = ["ignore::SyntaxWarning"]
