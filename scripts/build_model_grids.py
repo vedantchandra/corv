@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Build the packaged model grids used by corv.models.WarwickDAModel.
+Build the packaged model grids used by corv.models.GridModel.from_hdf5.
 
 Parses the raw Koester-format model files (one file per logg, many Teff
 spectra per file), puts every model on a common wavelength grid, crops to the
@@ -102,6 +102,15 @@ def build_grid(model_name, raw_dir):
 
     mask = (wavl_range[0] < reference) & (reference < wavl_range[1])
     wavl, fluxes = reference[mask], fluxes[:, mask]
+
+    # some raw grids repeat wavelength points: keep the first of each
+    duplicate = np.r_[False, np.diff(wavl) <= 0]
+    if duplicate.any():
+        assert np.all(np.diff(wavl) >= 0), 'raw wavelength grid is not sorted'
+        if not np.allclose(fluxes[:, duplicate], fluxes[:, np.roll(duplicate, -1)]):
+            print('  warning: repeated wavelength points have different fluxes; keeping the first')
+        print(f'  dropping {duplicate.sum()} repeated wavelength point(s)')
+        wavl, fluxes = wavl[~duplicate], fluxes[:, ~duplicate]
 
     fluxes = fnu_to_flam(wavl, fluxes)
     if frame == 'air':

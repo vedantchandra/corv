@@ -10,4 +10,3 @@ from . import models
 from . import utils
 from . import fit
 from . import spectral_resampling
-from . import sdss

@@ -1,3 +1,5 @@
+AUDIT_CHANGES.md
+
 *.pkl
 *.DS_Store
 *__pycache__*
