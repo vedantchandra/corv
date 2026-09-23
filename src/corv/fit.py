@@ -31,9 +31,13 @@ def _normalize_data(wl, fl, ivar, corvmodel):
     return nfl, nivar
 
 def _residual(wl, nfl, nivar, corvmodel, params):
-    """Error-scaled residuals against already-normalized data."""
+    """
+    Error-scaled residuals against already-normalized data. Masked pixels
+    (nivar = 0, which cont_norm_line pairs with NaN flux) contribute zero.
+    """
     _, nmodel = models.get_normalized_model(wl, corvmodel, params)
-    return (nfl - nmodel) * np.sqrt(nivar)
+    with np.errstate(invalid = 'ignore'):
+        return np.where(nivar > 0, (nfl - nmodel) * np.sqrt(nivar), 0.)
 
 def normalized_residual(wl, fl, ivar, corvmodel, params):
     """

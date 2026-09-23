@@ -21,6 +21,7 @@ classifiers = [
 
 [project.optional-dependencies]
 test = ["pytest"]
+validation = ["astroquery"]
 
 [project.urls]
 Homepage = "https://github.com/vedantchandra/corv"
@@ -32,4 +33,5 @@ corv = ["models/*/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["validation: slow comparison against external data; needs network (run with --run-validation)"]
 filterwarnings = ["ignore::SyntaxWarning"]

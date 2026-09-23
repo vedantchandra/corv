@@ -4,6 +4,11 @@ AUDIT_CHANGES.md
 *.DS_Store
 *__pycache__*
 *spyproject
+
+# validation downloads and outputs
+validation/cache/
+validation/output/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
