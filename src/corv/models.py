@@ -19,23 +19,17 @@ Notes:
 To-do:
     - Add convolution parameter to bring models to instrument resolution
     - Perhaps even convolve the LSF in a wavelength-dependent manner
-    - Add Koester DB models, 
+    - Add Koester DB models
 """
 
 import numpy as np
 from lmfit.models import Model, ConstantModel, VoigtModel, SkewedVoigtModel
 import os
-import scipy 
+import scipy.ndimage
 import h5py
 
 from scipy.interpolate import RegularGridInterpolator
 from . import utils
-
-try:
-    import koester
-    da_interp = koester.WDInterpolator()
-except:
-    print('Could not import Koester models. Contact arseneau@bu.edu if these are needed.')
 
 basepath = os.path.dirname(os.path.abspath(__file__))
 default_grid_path = os.path.join(basepath, 'models', 'corv_models.h5')
@@ -67,7 +61,6 @@ def make_balmer_model(nvoigt=1,
     Models each Balmer line as a (sum of) Voigt profiles
 
     Parameters
-    ----------
     nvoigt : int, optional
         number of Voigt profiles per line. The default is 1.
     centres : dict, optional
@@ -80,7 +73,6 @@ def make_balmer_model(nvoigt=1,
         line keys in ascending order of lambda. The default is default_names.
 
     Returns
-    -------
     model : LMFIT model
         LMFIT-style model that can be evaluated and fitted.
 
@@ -120,159 +112,94 @@ def make_balmer_model(nvoigt=1,
     model.edges = edges
     return model
 
-# Koester DA Model
-#if modpath!='no path selected':
-#    try:
-#        print(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'koester_interp_da.pkl'))
-#        wd_interp = pickle.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'koester_interp_da.pkl'), 'rb'))
-#    except:
-#        print('Could not find the pickled WD models. If you need to use these models, please re-import corv with the proper path.')
 
-def get_koester(x, teff, logg, RV, res):
-    """Interpolates Koester (2010) DA models
+def shift_and_broaden(x, RV, res, model_wavl, model_flux):
+    """
+    Doppler-shift a rest-frame template to velocity RV, sample it at x,
+    bring it to order unity, and convolve it with a Gaussian.
 
     Parameters
     ----------
     x : array_like
-        wavelength in Angstrom.
-    teff : float
-        effective temperature in K.
-    logg : float
-        log surface gravity in cgs.
+        observed wavelengths in Angstrom.
+    RV : float
+        radial velocity in km/s.
+    res : float
+        Gaussian sigma of the instrumental broadening, in Angstrom.
+    model_wavl, model_flux : array_like
+        rest-frame template.
 
     Returns
     -------
     flam : array_like
-        synthetic flux interpolated at the requested parameters.
-
+        model flux at x, NaN outside 3600-9000 AA in the rest frame.
     """
-    df = np.sqrt((1 - RV/c_kms)/(1 + RV/c_kms))
-    x_shifted = x * df
+    x_shifted = x * np.sqrt((1 - RV/c_kms)/(1 + RV/c_kms))
 
     flam = np.zeros_like(x_shifted) * np.nan
-
     in_bounds = (x_shifted > 3600) & (x_shifted < 9000)
-    #flam[in_bounds] = 10**wd_interp((logg, np.log10(teff), np.log10(x_shifted[in_bounds])))
-    #koester_interp = koester.WDInterpolator()
-    flam[in_bounds] = np.interp(x_shifted[in_bounds], da_interp.wavl_grid, da_interp.model_spec((teff, logg)))
-
+    flam[in_bounds] = np.interp(x_shifted[in_bounds], model_wavl, model_flux)
     flam = flam / np.nanmedian(flam) # bring to order unity
-    
+
     dx = np.median(np.diff(x))
-    window = res / dx
-    
-    flam = scipy.ndimage.gaussian_filter1d(flam, window)
-    
-    return flam
+    return scipy.ndimage.gaussian_filter1d(flam, res / dx)
 
 
-def make_koester_model(resolution = 1, centres = default_centres, 
-                       windows = default_windows, 
-                       edges = default_edges,
-                       names = default_names):
-    """Parameters
-    ----------
-    resolution : float, optional
-        gaussian sigma in AA by which the models are convolved. 
-        The default is 1.
-    centres : dict, optional
-        rest-frame line centres. The default is default_centres.
-    windows : dict, optional
-        region around each line in pixels. The default is default_windows.
-    edges : TYPE, optional
-        edge regions used to fit continuum. The default is default_edges.
-    names : TYPE, optional
-        line keys in ascending order of lambda. The default is default_names.
-    Returns
-    -------
-    model : TYPE
-        DESCRIPTION.
+class GridModel:
     """
-    
-    model = Model(get_koester,
-                  independent_vars = ['x'],
-                  param_names = ['teff', 'logg', 'RV', 'res'])
-    
-    model.set_param_hint('teff', min = 3001, max = 39999, value = 12000)
-    model.set_param_hint('logg', min = 4.51, max = 9.49, value = 8)
-    model.set_param_hint('RV', min = -2500, max = 2500, value = 0)
-    model.set_param_hint('res', value = resolution, min = 0, vary = False)
-    
-    
-    model.centres = centres
-    model.windows = windows
-    model.names = names
-    model.edges = edges
-    
-    return model
+    A (teff, logg) grid of model spectra wrapped as an LMFIT model with
+    parameters teff, logg, RV and res. The LMFIT model is `self.model`.
 
-class TwoParamModel:
-    def __init__(self, interpolator, wavelength, teff_bounds = (3000, 80000), logg_bounds = (7.0, 9.75), 
-                 centres = default_centres, windows = default_windows, edges = default_edges,
-                 names = default_names, resolution = 1):
+    Parameters
+    ----------
+    interpolator : callable
+        maps (teff, logg) to flux sampled on `wavl`.
+    wavl : array_like
+        rest-frame wavelengths of the interpolated spectra in Angstrom.
+    teff_bounds, logg_bounds : tuple, optional
+        fit bounds. Default to the extent of `interpolator.grid` when the
+        interpolator has one (e.g. RegularGridInterpolator).
+    resolution : float, optional
+        Gaussian sigma in AA by which the models are convolved. The default is 1.
+    centres, windows, edges, names : optional
+        line definitions used for continuum normalization.
+
+    The fit starts from teff = 12000, logg = 8 (clipped into the bounds).
+    Use GridModel.from_hdf5 for the packaged grids and GridModel.from_koester
+    for the Koester (2010) DA models.
+    """
+    def __init__(self, interpolator, wavl, teff_bounds = None, logg_bounds = None,
+                 resolution = 1, centres = default_centres, windows = default_windows,
+                 edges = default_edges, names = default_names):
         self.interpolator = interpolator
-        self.wavelength = wavelength
-        self.model = Model(self.get_twoparam, independent_vars = ['x'],
-                  param_names = ['teff', 'logg', 'RV', 'res'])
-        self.model.centres = centres
-        self.model.windows = windows
-        self.model.edges = edges
-        self.model.names = names
+        self.wavl = wavl
 
-        self.model.set_param_hint('teff', min = teff_bounds[0], max = teff_bounds[1], value = 12000)
-        self.model.set_param_hint('logg', min = logg_bounds[0], max = logg_bounds[1], value = 8)
-        self.model.set_param_hint('RV', value = 0, min = -2500, max = 2500)
-        self.model.set_param_hint('c', value = 1)
-        self.model.set_param_hint('res', value = resolution, min = 0, vary = False)
+        if teff_bounds is None or logg_bounds is None:
+            assert hasattr(interpolator, 'grid'), \
+                'teff_bounds and logg_bounds are required for interpolators without a .grid'
+            teff_axis, logg_axis = interpolator.grid
+            if teff_bounds is None:
+                teff_bounds = (np.min(teff_axis), np.max(teff_axis))
+            if logg_bounds is None:
+                logg_bounds = (np.min(logg_axis), np.max(logg_axis))
 
-    def get_twoparam(self, x, teff, logg, RV, res):
-        df = np.sqrt((1 - RV/c_kms)/(1 + RV/c_kms))
-        x_shifted = x * df
-        flam = np.zeros_like(x_shifted) * np.nan
-
-        in_bounds = (x_shifted > 3600) & (x_shifted < 9000)
-        flam[in_bounds] = np.interp(x_shifted[in_bounds], self.wavelength, self.interpolator((teff, logg)))
-        #flam[in_bounds] = self.interpolator.model_spec((teff, logg, x_shifted[in_bounds]))
-        flam = flam / np.nanmedian(flam) # bring to order unity
-        dx = np.median(np.diff(x))
-        window = res * dx
-
-        flam = scipy.ndimage.gaussian_filter1d(flam, window)
-        return flam
-
-# Montreal DA Model
-## UPDATED INTERPOLATION & MODEL SUPPORT
-class WarwickDAModel:
-    def __init__(self, model_name = '1d_da_nlte', resolution = 1, 
-                       centres = default_centres, windows = default_windows, 
-                       edges = default_edges, names = default_names,
-                       grid_path = default_grid_path):
-
-        self.interpolator = ModelGrid(model_name, path = grid_path)
-        self.model = Model(self.get_warwick, independent_vars = ['x'],
-                  param_names = ['teff', 'logg', 'RV', 'res'])
-
-        if model_name == '3d_da_lte_h2':
-            self.model.set_param_hint('teff', min = 4001, max = 39900, value = 12000)
-        else:
-            self.model.set_param_hint('teff', min = 4001, max = 129000, value = 12000)
-
-        if model_name == '1d_da_nlte':
-            self.model.set_param_hint('logg', min = 7, max = 9.49, value = 8)
-        else:
-            self.model.set_param_hint('logg', min = 7, max = 9, value = 8)
-            
+        self.model = Model(self.evaluate, independent_vars = ['x'],
+                           param_names = ['teff', 'logg', 'RV', 'res'])
+        self.model.set_param_hint('teff', min = teff_bounds[0], max = teff_bounds[1],
+                                  value = np.clip(12000, *teff_bounds))
+        self.model.set_param_hint('logg', min = logg_bounds[0], max = logg_bounds[1],
+                                  value = np.clip(8, *logg_bounds))
         self.model.set_param_hint('RV', min = -2500, max = 2500, value = 0)
         self.model.set_param_hint('res', value = resolution, min = 0, vary = False)
-    
+
         self.model.centres = centres
         self.model.windows = windows
         self.model.names = names
         self.model.edges = edges
 
-    def get_warwick(self, x, teff, logg, RV, res):
+    def evaluate(self, x, teff, logg, RV, res):
         """
-        Interpolates Montreal models
+        Interpolates the grid, then shifts and broadens it (see shift_and_broaden).
 
         Parameters
         ----------
@@ -282,29 +209,56 @@ class WarwickDAModel:
             effective temperature in K.
         logg : float
             log surface gravity in cgs.
+        RV : float
+            radial velocity in km/s.
+        res : float
+            Gaussian sigma of the instrumental broadening, in Angstrom.
 
         Returns
         -------
         flam : array_like
             synthetic flux interpolated at the requested parameters.
-
         """
-        df = np.sqrt((1 - RV/c_kms)/(1 + RV/c_kms))
-        x_shifted = x * df
+        return shift_and_broaden(x, RV, res, self.wavl, self.interpolator((teff, logg)))
 
-        flam = np.zeros_like(x_shifted) * np.nan
+    @classmethod
+    def from_hdf5(cls, model_name = '1d_da_nlte', grid_path = default_grid_path,
+                  teff_bounds = None, logg_bounds = None, **kwargs):
+        """
+        Load a grid from the HDF5 file built by scripts/build_model_grids.py.
+        Bounds default to the grid's extent, with teff floored at 4001 K. The
+        loaded ModelGrid is kept as `self.grid`.
+        """
+        grid = ModelGrid(model_name, path = grid_path)
+        if teff_bounds is None:
+            teff_bounds = (max(grid.teff.min(), 4001), grid.teff.max())
+        if logg_bounds is None:
+            logg_bounds = (grid.logg.min(), grid.logg.max())
+        obj = cls(grid.model_spec, grid.wavl, teff_bounds, logg_bounds, **kwargs)
+        obj.grid = grid
+        return obj
 
-        in_bounds = (x_shifted > 3600) & (x_shifted < 9000)
-        flam[in_bounds] = np.interp(x_shifted[in_bounds], self.interpolator.wavl, self.interpolator.model_spec((teff, logg)))
-        #flam[in_bounds] = self.interpolator.model_spec((teff, logg, x_shifted[in_bounds]))
-        norm = np.nanmedian(flam)
-        flam = flam / norm # bring to order unity
-            
-        dx = np.median(np.diff(x))
-        window = res * dx
-        
-        flam = scipy.ndimage.gaussian_filter1d(flam, window)
-        return flam
+    @classmethod
+    def from_koester(cls, teff_bounds = (3001, 39999), logg_bounds = (4.51, 9.49), **kwargs):
+        """Koester (2010) DA models, via the optional `koester` package."""
+        try:
+            import koester
+        except ImportError:
+            raise ImportError('Koester models require the `koester` package. '
+                              'Contact arseneau@bu.edu if these are needed.') from None
+        interp = koester.WDInterpolator()
+        return cls(interp.model_spec, interp.wavl_grid, teff_bounds, logg_bounds, **kwargs)
+
+
+# backwards-compatible names
+
+def WarwickDAModel(model_name = '1d_da_nlte', **kwargs):
+    """Equivalent to GridModel.from_hdf5."""
+    return GridModel.from_hdf5(model_name, **kwargs)
+
+def make_koester_model(resolution = 1, **kwargs):
+    """Equivalent to GridModel.from_koester(...).model"""
+    return GridModel.from_koester(resolution = resolution, **kwargs).model
 
 
 def get_normalized_model(wl, corvmodel, params):
